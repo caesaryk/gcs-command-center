@@ -115,6 +115,12 @@ class Database {
                 { id: 'U2', username: 'alice',   password: 'password', role: 'staff',   staffId: 'S1' },
                 { id: 'U3', username: 'bob',     password: 'password', role: 'staff',   staffId: 'S2' }
             ],
+            clients: [
+                { id: 'C1', name: 'Manhattan Corporate Group', contact: 'Sarah Chen', phone: '212-555-0101', email: 'sarah@mcg.com', address: '500 5th Avenue, New York, NY 10110', notes: 'Premium client, VIP protocol required', createdAt: now.toISOString() },
+                { id: 'C2', name: 'Metropolitan Healthcare', contact: 'Dr. James Mitchell', phone: '212-555-0102', email: 'admin@metrohealth.org', address: '800 Broadway, New York, NY 10003', notes: 'Medical facility - use medical-grade disinfectants', createdAt: now.toISOString() },
+                { id: 'C3', name: 'Tri-State Logistics', contact: 'Michael Torres', phone: '908-555-0103', email: 'ops@tristate.com', address: '200 Industrial Park Drive, Newark, NJ 07102', notes: 'Warehouse operations - 24/7 access required', createdAt: now.toISOString() },
+                { id: 'C4', name: 'Empire Building Associates', contact: 'Jessica Williams', phone: '212-555-0104', email: 'facilities@empirebd.com', address: '350 5th Avenue, New York, NY 10118', notes: 'Multi-floor commercial - premium account', createdAt: now.toISOString() }
+            ],
             staff: [
                 { id: 'S1', name: 'Alice Walker',    avatar: 'AW', hours: 32, type: 'cleaner',     roles: ['cleaner'], phone: '555-0101', email: 'alice@gcs.com', isActive: true, startDate: new Date(2024, 0, 15).toISOString(), notes: '' },
                 { id: 'S2', name: 'Bob Smith',       avatar: 'BS', hours: 40, type: 'maintenance', roles: ['maintenance'], phone: '555-0102', email: 'bob@gcs.com', isActive: true, startDate: new Date(2023, 6, 20).toISOString(), notes: '' },
@@ -126,11 +132,11 @@ class Database {
                 { id: 'S8', name: 'Hannah Lee',      avatar: 'HL', hours: 35, type: 'maintenance', roles: ['maintenance'], phone: '555-0108', email: 'hannah@gcs.com', isActive: true, startDate: new Date(2023, 8, 18).toISOString(), notes: '' }
             ],
             sites: [
-                { id: 'L1', name: 'Site 44 (Downtown)',     address: '44 Wall Street, New York, NY 10005',        lat: 40.7128, lng: -74.0060 },
-                { id: 'L2', name: 'Northpark Complex',      address: '120 Northpark Blvd, Newark, NJ 07102',      lat: 40.7300, lng: -74.0100 },
-                { id: 'L3', name: 'Apex Tower (Floor 12)',  address: '350 5th Avenue, New York, NY 10118',        lat: 40.7580, lng: -73.9855 },
-                { id: 'L4', name: 'Westside Clinic',        address: '210 W 14th Street, New York, NY 10011',     lat: 40.7410, lng: -73.9980 },
-                { id: 'L5', name: 'Easton Warehouse',       address: '88 Industrial Dr, Brooklyn, NY 11231',      lat: 40.7110, lng: -73.9580 }
+                { id: 'L1', name: 'Site 44 (Downtown)',     address: '44 Wall Street, New York, NY 10005',        lat: 40.7128, lng: -74.0060, clientId: 'C1', siteManager: 'Robert Adams', managerPhone: '212-555-0201', managerEmail: 'radams@mcg.com', serviceType: 'commercial', squareFeet: 45000, notes: 'Weekly deep clean every Friday. Executive areas priority.', isActive: true },
+                { id: 'L2', name: 'Northpark Complex',      address: '120 Northpark Blvd, Newark, NJ 07102',      lat: 40.7300, lng: -74.0100, clientId: 'C3', siteManager: 'David Hernandez', managerPhone: '908-555-0202', managerEmail: 'dhernandez@tristate.com', serviceType: 'warehouse', squareFeet: 120000, notes: '24/7 access required. Loading dock cleaning critical. Monthly deep clean first Sunday.', isActive: true },
+                { id: 'L3', name: 'Apex Tower (Floor 12)',  address: '350 5th Avenue, New York, NY 10118',        lat: 40.7580, lng: -73.9855, clientId: 'C4', siteManager: 'Michelle Rodriguez', managerPhone: '212-555-0203', managerEmail: 'mrodriguez@empirebd.com', serviceType: 'commercial', squareFeet: 35000, notes: 'Premium commercial. VIP protocol. Glass surfaces must be pristine daily.', isActive: true },
+                { id: 'L4', name: 'Westside Clinic',        address: '210 W 14th Street, New York, NY 10011',     lat: 40.7410, lng: -73.9980, clientId: 'C2', siteManager: 'Dr. Patricia Wong', managerPhone: '212-555-0204', managerEmail: 'pwong@metrohealth.org', serviceType: 'medical', squareFeet: 28000, notes: 'Medical facility - STRICT hygiene protocols. Medical-grade disinfectants only. Biohazard compliance required.', isActive: true },
+                { id: 'L5', name: 'Easton Warehouse',       address: '88 Industrial Dr, Brooklyn, NY 11231',      lat: 40.7110, lng: -73.9580, clientId: 'C3', siteManager: 'Kevin McCarthy', managerPhone: '908-555-0205', managerEmail: 'kmccarthy@tristate.com', serviceType: 'warehouse', squareFeet: 85000, notes: 'Industrial facility. Floor degreaser required. Inventory bins must remain accessible.', isActive: true }
             ],
             siteTasks: [
                 { siteId: 'L1', cleanerTasks: [...DEFAULT_CLEANER_TASKS], maintenanceTasks: [...DEFAULT_MAINTENANCE_TASKS] },
@@ -394,6 +400,112 @@ class Database {
         this.data.siteTasks = this.data.siteTasks.filter(t => t.siteId !== siteId);
         this.data.inventory = this.data.inventory.filter(i => i.siteId !== siteId);
         this.saveData();
+    }
+
+    updateFacility(siteId, updates) {
+        const facility = this.data.sites.find(s => s.id === siteId);
+        if (!facility) return null;
+        Object.assign(facility, updates);
+        const clientId = facility.clientId;
+        const client = clientId ? this.data.clients.find(c => c.id === clientId) : null;
+        this.addFeedEvent('info', `Facility "${facility.name}" updated${client ? ' (' + client.name + ')' : ''}.`);
+        this.saveData();
+        return facility;
+    }
+
+    getFacilityDetails(siteId) {
+        const facility = this.data.sites.find(s => s.id === siteId);
+        if (!facility) return null;
+
+        const client = facility.clientId ? this.data.clients.find(c => c.id === facility.clientId) : null;
+
+        // Get assigned staff from shifts
+        const assignedShifts = this.data.shifts.filter(s => s.siteId === siteId && (s.status === 'active' || s.status === 'upcoming'));
+        const assignedStaffIds = new Set();
+        assignedShifts.forEach(s => {
+            const staffIds = s.staffIds || [s.staffId];
+            staffIds.forEach(id => assignedStaffIds.add(id));
+        });
+        const assignedStaff = Array.from(assignedStaffIds).map(id => this.data.staff.find(s => s.id === id)).filter(Boolean);
+
+        // Get tasks for this facility
+        const siteTasks = this.data.siteTasks.find(t => t.siteId === siteId) || { cleanerTasks: [], maintenanceTasks: [] };
+
+        // Get inventory for this facility
+        const inventory = this.data.inventory.filter(i => i.siteId === siteId);
+        const lowStockItems = inventory.filter(i => i.qty < i.minQty);
+
+        return {
+            ...facility,
+            client,
+            assignedStaff,
+            siteTasks,
+            inventory,
+            lowStockItems
+        };
+    }
+
+    getFacilitiesByClient(clientId) {
+        return this.data.sites.filter(s => s.clientId === clientId);
+    }
+
+    // ─── Clients CRUD ────────────────────────────────────────────────────────────
+
+    addClient(name, contact, phone, email, address, notes) {
+        const id = 'C' + Date.now();
+        const newClient = {
+            id,
+            name: name.trim(),
+            contact: contact.trim(),
+            phone: phone.trim(),
+            email: email.trim(),
+            address: address.trim(),
+            notes: notes.trim(),
+            createdAt: new Date().toISOString()
+        };
+        this.data.clients.push(newClient);
+        this.addFeedEvent('success', `New client "${name}" added.`);
+        this.saveData();
+        return newClient;
+    }
+
+    updateClient(clientId, updates) {
+        const client = this.data.clients.find(c => c.id === clientId);
+        if (!client) return null;
+        Object.assign(client, updates);
+        this.addFeedEvent('info', `Client "${client.name}" information updated.`);
+        this.saveData();
+        return client;
+    }
+
+    deleteClient(clientId) {
+        const client = this.data.clients.find(c => c.id === clientId);
+        if (!client) return null;
+
+        const facilitiesCount = this.data.sites.filter(s => s.clientId === clientId).length;
+
+        if (facilitiesCount > 0) {
+            // Prevent deletion if client has facilities
+            return { success: false, error: `Cannot delete client with ${facilitiesCount} assigned facilities. Reassign or delete facilities first.` };
+        }
+
+        this.data.clients = this.data.clients.filter(c => c.id !== clientId);
+        this.addFeedEvent('info', `Client "${client.name}" deleted.`);
+        this.saveData();
+        return { success: true, client };
+    }
+
+    getClientFacilities(clientId) {
+        const facilities = this.data.sites.filter(s => s.clientId === clientId);
+        return facilities.map(f => ({
+            ...f,
+            staffCount: new Set(
+                this.data.shifts
+                    .filter(s => s.siteId === f.id && (s.status === 'active' || s.status === 'upcoming'))
+                    .flatMap(s => s.staffIds || [s.staffId])
+            ).size,
+            lowStockCount: this.data.inventory.filter(i => i.siteId === f.id && i.qty < i.minQty).length
+        }));
     }
 
     // ─── Shifts CRUD ─────────────────────────────────────────────────────────────

@@ -1680,49 +1680,350 @@ window.saveEditedStaff = function () {
     showToast(`${name} updated successfully`, 'success');
 };
 
-// ─── Locations ────────────────────────────────────────────────────────────────
+// ─── Facilities & Clients ──────────────────────────────────────────────────────
+
+var currentEditingFacilityId = null;
+var currentEditingClientId = null;
 
 function renderLocations(sites, shifts) {
-    const tbody = document.getElementById('locations-list');
-    if (!tbody) return;
-    tbody.innerHTML = sites.map(site => {
-        const siteShifts = shifts.filter(s => s.siteId === site.id);
-        const hasLate    = siteShifts.some(s => s.status === 'late');
-        const hasActive  = siteShifts.some(s => s.status === 'active');
-        const status     = hasLate ? 'Critical' : hasActive ? 'Active' : 'Standby';
-        const statusCls  = hasLate
-            ? 'bg-red-100 text-red-700 border-red-200'
-            : hasActive
-            ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-            : 'bg-slate-100 text-slate-600 border-slate-200';
-        const todayCount = siteShifts.filter(s => s.status === 'active' || s.status === 'upcoming').length;
-        return `<tr class="hover:bg-slate-50 transition-colors group">
-            <td class="px-5 py-3 font-semibold text-slate-900">${escapeHTML(site.name)}</td>
-            <td class="px-5 py-3 text-xs text-slate-500">${escapeHTML(site.address || 'Pending')}</td>
-            <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusCls}">${status}</span></td>
-            <td class="px-5 py-3 text-sm text-slate-600">${todayCount} staff</td>
-            <td class="px-5 py-3 text-right">
-                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="openTaskManager('${escapeHTML(site.id)}')" class="px-3 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Tasks</button>
-                    <button onclick="deleteSiteItem('${escapeHTML(site.id)}')" class="px-3 py-1 text-xs font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">Remove</button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('') || `<tr><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400 italic">No facilities registered.</td></tr>`;
+    renderClientsAndFacilities();
 }
 
-window.createNewSite = function () {
-    const name = document.getElementById('new-site-name').value.trim();
-    const addr = document.getElementById('new-site-address').value.trim();
-    if (!name) { alert('Facility must have a name.'); return; }
-    window.db.addSite(name, addr);
-    document.getElementById('new-site-name').value    = '';
-    document.getElementById('new-site-address').value = '';
-    document.getElementById('add-site-form').classList.add('hidden');
+function renderClientsAndFacilities() {
+    renderClientsList();
+    renderFacilitiesList();
+    populateClientDropdowns();
+}
+
+function renderClientsList() {
+    const container = document.getElementById('clients-list');
+    if (!container) return;
+
+    const clients = window.db.data.clients || [];
+    if (clients.length === 0) {
+        container.innerHTML = '<div class="px-5 py-8 text-center text-sm text-slate-400 italic">No clients registered yet.</div>';
+        return;
+    }
+
+    container.innerHTML = clients.map(client => {
+        const facilities = window.db.data.sites.filter(s => s.clientId === client.id) || [];
+        return `
+            <div class="px-5 py-3 hover:bg-slate-50 transition-colors group">
+                <div class="font-semibold text-slate-900 text-sm">${escapeHTML(client.name)}</div>
+                <div class="text-xs text-slate-500 mt-0.5">${escapeHTML(client.contact)} • ${escapeHTML(client.phone)}</div>
+                <div class="text-xs text-slate-400 mt-1">${facilities.length} facilit${facilities.length === 1 ? 'y' : 'ies'}</div>
+                <div class="flex items-center justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="window.openEditClientModal('${escapeHTML(client.id)}')" class="px-2 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition-colors">Edit</button>
+                    <button onclick="window.deleteClientItem('${escapeHTML(client.id)}')" class="px-2 py-1 text-xs font-bold text-red-600 border border-red-200 rounded hover:bg-red-50 transition-colors">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderFacilitiesList() {
+    const container = document.getElementById('facilities-list');
+    if (!container) return;
+
+    const sites = window.db.data.sites || [];
+    const clients = window.db.data.clients || [];
+
+    if (sites.length === 0) {
+        container.innerHTML = '<div class="px-5 py-8 text-center text-sm text-slate-400 italic">No facilities registered yet.</div>';
+        return;
+    }
+
+    container.innerHTML = sites.map(site => {
+        const client = clients.find(c => c.id === site.clientId);
+        const isActive = site.isActive !== false;
+        return `
+            <div class="px-5 py-3 hover:bg-slate-50 transition-colors group">
+                <div class="font-semibold text-slate-900 text-sm">${escapeHTML(site.name)}</div>
+                ${client ? `<div class="text-xs text-slate-500 mt-0.5">Client: <strong>${escapeHTML(client.name)}</strong></div>` : ''}
+                <div class="text-xs text-slate-500 mt-0.5">${escapeHTML(site.address)}</div>
+                <div class="text-xs text-slate-400 mt-1">${site.serviceType || 'Unknown'} • ${isActive ? 'Active' : 'Inactive'}</div>
+                <div class="flex items-center justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="window.viewFacilityDetails('${escapeHTML(site.id)}')" class="px-2 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition-colors">Details</button>
+                    <button onclick="window.openEditFacilityModal('${escapeHTML(site.id)}')" class="px-2 py-1 text-xs font-bold text-purple-600 border border-purple-200 rounded hover:bg-purple-50 transition-colors">Edit</button>
+                    <button onclick="window.deleteFacilityItem('${escapeHTML(site.id)}')" class="px-2 py-1 text-xs font-bold text-red-600 border border-red-200 rounded hover:bg-red-50 transition-colors">Remove</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function populateClientDropdowns() {
+    const clients = window.db.data.clients || [];
+    const selects = document.querySelectorAll('#new-facility-client, #edit-facility-client');
+    selects.forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">-- Select Client --</option>' + clients.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
+        select.value = currentValue;
+    });
+}
+
+window.createNewClient = function () {
+    const name = document.getElementById('new-client-name').value.trim();
+    const contact = document.getElementById('new-client-contact').value.trim();
+    const phone = document.getElementById('new-client-phone').value.trim();
+    const email = document.getElementById('new-client-email').value.trim();
+    const address = document.getElementById('new-client-address').value.trim();
+    const notes = document.getElementById('new-client-notes').value.trim();
+
+    if (!name || !contact) { alert('Company name and contact person are required.'); return; }
+
+    window.db.addClient(name, contact, phone, email, address, notes);
+    document.getElementById('new-client-name').value = '';
+    document.getElementById('new-client-contact').value = '';
+    document.getElementById('new-client-phone').value = '';
+    document.getElementById('new-client-email').value = '';
+    document.getElementById('new-client-address').value = '';
+    document.getElementById('new-client-notes').value = '';
+    document.getElementById('add-client-form').classList.add('hidden');
+    showToast('Client created successfully!', 'success');
 };
 
-window.deleteSiteItem = function (siteId) {
-    if (confirm('Remove this facility and all its shifts and inventory?')) window.db.deleteSite(siteId);
+window.openEditClientModal = function (clientId) {
+    const client = window.db.data.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    currentEditingClientId = clientId;
+    document.getElementById('edit-client-name').value = client.name;
+    document.getElementById('edit-client-contact').value = client.contact;
+    document.getElementById('edit-client-phone').value = client.phone;
+    document.getElementById('edit-client-email').value = client.email;
+    document.getElementById('edit-client-address').value = client.address;
+    document.getElementById('edit-client-notes').value = client.notes;
+    document.getElementById('edit-client-modal').classList.remove('hidden');
+};
+
+window.saveClientChanges = function () {
+    if (!currentEditingClientId) return;
+
+    const updates = {
+        name: document.getElementById('edit-client-name').value.trim(),
+        contact: document.getElementById('edit-client-contact').value.trim(),
+        phone: document.getElementById('edit-client-phone').value.trim(),
+        email: document.getElementById('edit-client-email').value.trim(),
+        address: document.getElementById('edit-client-address').value.trim(),
+        notes: document.getElementById('edit-client-notes').value.trim()
+    };
+
+    if (!updates.name || !updates.contact) { alert('Company name and contact person are required.'); return; }
+
+    window.db.updateClient(currentEditingClientId, updates);
+    window.closeClientModal();
+    showToast('Client updated successfully!', 'success');
+};
+
+window.closeClientModal = function () {
+    document.getElementById('edit-client-modal').classList.add('hidden');
+    currentEditingClientId = null;
+};
+
+window.deleteClientItem = function (clientId) {
+    const client = window.db.data.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    const facilities = window.db.data.sites.filter(s => s.clientId === clientId);
+    if (facilities.length > 0) {
+        alert(`Cannot delete client "${client.name}" because it has ${facilities.length} assigned facilities. Please reassign or delete the facilities first.`);
+        return;
+    }
+
+    if (confirm(`Delete client "${client.name}"? This action cannot be undone.`)) {
+        window.db.deleteClient(clientId);
+        showToast('Client deleted successfully!', 'success');
+    }
+};
+
+window.createNewFacility = function () {
+    const name = document.getElementById('new-facility-name').value.trim();
+    const clientId = document.getElementById('new-facility-client').value.trim();
+    const address = document.getElementById('new-facility-address').value.trim();
+    const manager = document.getElementById('new-facility-manager').value.trim();
+    const type = document.getElementById('new-facility-type').value.trim();
+
+    if (!name || !address) { alert('Facility name and address are required.'); return; }
+
+    // Create facility using the original addSite method but with new fields
+    const site = window.db.addSite(name, address);
+
+    // Update with new fields
+    window.db.updateFacility(site.id, {
+        clientId: clientId || null,
+        siteManager: manager,
+        serviceType: type,
+        isActive: true
+    });
+
+    document.getElementById('new-facility-name').value = '';
+    document.getElementById('new-facility-client').value = '';
+    document.getElementById('new-facility-address').value = '';
+    document.getElementById('new-facility-manager').value = '';
+    document.getElementById('new-facility-type').value = '';
+    document.getElementById('add-facility-form').classList.add('hidden');
+    showToast('Facility registered successfully!', 'success');
+};
+
+window.viewFacilityDetails = function (siteId) {
+    const details = window.db.getFacilityDetails(siteId);
+    if (!details) return;
+
+    const client = details.client;
+    const staffByRole = {
+        cleaner: details.assignedStaff.filter(s => s.roles.includes('cleaner')),
+        maintenance: details.assignedStaff.filter(s => s.roles.includes('maintenance')),
+        supervisor: details.assignedStaff.filter(s => s.roles.includes('supervisor'))
+    };
+
+    const lowStockHTML = details.lowStockItems.length > 0
+        ? details.lowStockItems.map(item => `<div class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">${escapeHTML(item.item)}: ${item.qty}/${item.minQty}</div>`).join('')
+        : '<div class="text-xs text-slate-400 italic">All items well-stocked</div>';
+
+    const html = `
+        <div class="space-y-5">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">${escapeHTML(details.name)}</h3>
+                <p class="text-sm text-slate-600">${escapeHTML(details.address)}</p>
+            </div>
+
+            ${client ? `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="text-xs font-bold text-blue-900 mb-2">CLIENT</div>
+                    <div class="text-sm font-semibold text-blue-900">${escapeHTML(client.name)}</div>
+                    <div class="text-xs text-blue-700 mt-1">${escapeHTML(client.contact)} • ${escapeHTML(client.phone)}</div>
+                    <div class="text-xs text-blue-600 mt-1">${escapeHTML(client.email)}</div>
+                </div>
+            ` : ''}
+
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">people</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Assigned Staff</h4>
+                </div>
+                ${details.assignedStaff.length === 0
+                    ? '<p class="text-xs text-slate-400 italic">No staff assigned</p>'
+                    : `
+                        ${staffByRole.cleaner.length > 0 ? `
+                            <div class="mb-3">
+                                <div class="text-xs font-bold text-slate-600 mb-1">Cleaners (${staffByRole.cleaner.length})</div>
+                                ${staffByRole.cleaner.map(s => `<div class="text-xs text-slate-600 px-2 py-1 bg-slate-50 rounded mb-1">${escapeHTML(s.name)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${staffByRole.maintenance.length > 0 ? `
+                            <div class="mb-3">
+                                <div class="text-xs font-bold text-slate-600 mb-1">Maintenance (${staffByRole.maintenance.length})</div>
+                                ${staffByRole.maintenance.map(s => `<div class="text-xs text-slate-600 px-2 py-1 bg-slate-50 rounded mb-1">${escapeHTML(s.name)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                    `
+                }
+            </div>
+
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">task_alt</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Tasks</h4>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="text-slate-600">Cleaner: ${details.siteTasks.cleanerTasks.length} tasks</div>
+                    <div class="text-slate-600">Maintenance: ${details.siteTasks.maintenanceTasks.length} tasks</div>
+                </div>
+                <button onclick="window.openTaskManager('${escapeHTML(siteId)}')" class="mt-2 px-3 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded hover:bg-blue-50">Manage Tasks</button>
+            </div>
+
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">inventory_2</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Inventory</h4>
+                </div>
+                <div class="space-y-1">${lowStockHTML}</div>
+            </div>
+
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">info</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Service Info</h4>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div><strong>Service Type:</strong> ${escapeHTML(details.serviceType || 'General')}</div>
+                    <div><strong>Manager:</strong> ${escapeHTML(details.siteManager || 'Not assigned')}</div>
+                    ${details.managerPhone ? `<div><strong>Phone:</strong> ${escapeHTML(details.managerPhone)}</div>` : ''}
+                    ${details.managerEmail ? `<div><strong>Email:</strong> ${escapeHTML(details.managerEmail)}</div>` : ''}
+                    ${details.squareFeet ? `<div><strong>Size:</strong> ${details.squareFeet.toLocaleString()} sq ft</div>` : ''}
+                </div>
+            </div>
+
+            ${details.notes ? `
+                <div>
+                    <div class="text-xs font-bold text-slate-600 mb-1">Notes</div>
+                    <p class="text-xs text-slate-600 bg-slate-50 p-2 rounded">${escapeHTML(details.notes)}</p>
+                </div>
+            ` : ''}
+
+            <button onclick="window.openEditFacilityModal('${escapeHTML(siteId)}')" class="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm transition-colors mt-4">Edit Facility</button>
+        </div>
+    `;
+
+    openDrawer(`Facility Details — ${details.name}`, html);
+};
+
+window.openEditFacilityModal = function (siteId) {
+    const facility = window.db.data.sites.find(s => s.id === siteId);
+    if (!facility) return;
+
+    closeDrawer();
+    currentEditingFacilityId = siteId;
+    document.getElementById('edit-facility-name').value = facility.name;
+    document.getElementById('edit-facility-client').value = facility.clientId || '';
+    document.getElementById('edit-facility-address').value = facility.address;
+    document.getElementById('edit-facility-manager').value = facility.siteManager || '';
+    document.getElementById('edit-facility-manager-phone').value = facility.managerPhone || '';
+    document.getElementById('edit-facility-manager-email').value = facility.managerEmail || '';
+    document.getElementById('edit-facility-type').value = facility.serviceType || '';
+    document.getElementById('edit-facility-sqft').value = facility.squareFeet || '';
+    document.getElementById('edit-facility-notes').value = facility.notes || '';
+    document.getElementById('edit-facility-active').checked = facility.isActive !== false;
+    document.getElementById('edit-facility-modal').classList.remove('hidden');
+};
+
+window.saveFacilityChanges = function () {
+    if (!currentEditingFacilityId) return;
+
+    const updates = {
+        name: document.getElementById('edit-facility-name').value.trim(),
+        address: document.getElementById('edit-facility-address').value.trim(),
+        clientId: document.getElementById('edit-facility-client').value.trim() || null,
+        siteManager: document.getElementById('edit-facility-manager').value.trim(),
+        managerPhone: document.getElementById('edit-facility-manager-phone').value.trim(),
+        managerEmail: document.getElementById('edit-facility-manager-email').value.trim(),
+        serviceType: document.getElementById('edit-facility-type').value.trim(),
+        squareFeet: parseInt(document.getElementById('edit-facility-sqft').value) || 0,
+        notes: document.getElementById('edit-facility-notes').value.trim(),
+        isActive: document.getElementById('edit-facility-active').checked
+    };
+
+    if (!updates.name || !updates.address) { alert('Facility name and address are required.'); return; }
+
+    window.db.updateFacility(currentEditingFacilityId, updates);
+    window.closeFacilityModal();
+    showToast('Facility updated successfully!', 'success');
+};
+
+window.closeFacilityModal = function () {
+    document.getElementById('edit-facility-modal').classList.add('hidden');
+    currentEditingFacilityId = null;
+};
+
+window.deleteFacilityItem = function (siteId) {
+    const facility = window.db.data.sites.find(s => s.id === siteId);
+    if (!facility) return;
+
+    if (confirm(`Remove facility "${facility.name}" and all its shifts and inventory? This action cannot be undone.`)) {
+        window.db.deleteSite(siteId);
+        showToast('Facility removed successfully!', 'success');
+    }
 };
 
 window.openTaskManager = function (siteId) {
@@ -2403,7 +2704,7 @@ window.handleSearch = function (query) {
     const active = document.querySelector('.app-view.active');
     if (!active) return;
     if (active.id === 'view-staffdir')    renderStaffDirectory(data.staffList, data.shifts);
-    if (active.id === 'view-locationsmgt') renderLocations(data.sites, data.shifts);
+    if (active.id === 'view-locationsmgt') renderClientsAndFacilities();
     if (active.id === 'view-shiftmgt')    renderShiftManagement();
     if (active.id === 'view-scheduleview') renderScheduleView();
 };

@@ -538,45 +538,72 @@
         <!-- ──────────────────────────────────────────────────────────
              VIEW 6: FACILITIES & CLIENTS
         ─────────────────────────────────────────────────────────── -->
-        <div id="view-locationsmgt" class="app-view gap-5 pb-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">Facilities & Clients</h2>
-                    <p class="text-sm text-slate-500 mt-0.5">Manage sites, tasks, and performance</p>
-                </div>
-                <button onclick="document.getElementById('add-site-form').classList.toggle('hidden')" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
-                    <span class="material-symbols-outlined text-[16px]">add</span> Add Facility
-                </button>
+        <div id="view-locationsmgt" class="app-view gap-5 pb-6 flex-col">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">Facilities & Clients</h2>
+                <p class="text-sm text-slate-500 mt-0.5">Manage clients, facilities, and site operations</p>
             </div>
 
-            <!-- Add Site Form -->
-            <div id="add-site-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
-                <h3 class="font-bold text-slate-900 mb-3">Register New Facility</h3>
-                <div class="flex gap-3 flex-wrap">
-                    <input id="new-site-name"    type="text" placeholder="Facility Name *"    class="flex-1 min-w-[180px] px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    <input id="new-site-address" type="text" placeholder="Full Address"        class="flex-1 min-w-[200px] px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    <button onclick="createNewSite()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Register</button>
-                </div>
-            </div>
+            <!-- Two-column layout: Clients (left) & Facilities (right) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
 
-            <!-- Facilities Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-4 border-b border-slate-200 bg-slate-50">
-                    <h3 class="font-bold text-slate-900 text-sm">Active Facilities Registry</h3>
+                <!-- LEFT COLUMN: CLIENTS MANAGEMENT -->
+                <div class="flex flex-col gap-4 min-h-0">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-900">Clients</h3>
+                        <button onclick="document.getElementById('add-client-form').classList.toggle('hidden')" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">
+                            <span class="material-symbols-outlined text-[14px]">add</span> Add Client
+                        </button>
+                    </div>
+
+                    <!-- Add Client Form -->
+                    <div id="add-client-form" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                        <h4 class="font-bold text-sm text-slate-900">New Client</h4>
+                        <input id="new-client-name"    type="text" placeholder="Company Name *"    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-client-contact" type="text" placeholder="Contact Person *"  class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-client-phone"   type="text" placeholder="Phone Number"      class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-client-email"   type="email" placeholder="Email Address"    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-client-address" type="text" placeholder="Billing Address"   class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <textarea id="new-client-notes" placeholder="Notes (optional)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" rows="2"></textarea>
+                        <div class="flex gap-2">
+                            <button onclick="createNewClient()" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors">Save</button>
+                            <button onclick="document.getElementById('add-client-form').classList.add('hidden')" class="flex-1 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 text-sm font-bold rounded-lg transition-colors">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Clients List -->
+                    <div class="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 overflow-y-auto">
+                        <div id="clients-list" class="divide-y divide-slate-100 text-sm"></div>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                            <tr class="bg-white text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                                <th class="px-5 py-3">Facility Name</th>
-                                <th class="px-5 py-3">Address</th>
-                                <th class="px-5 py-3">Status</th>
-                                <th class="px-5 py-3">Staff Today</th>
-                                <th class="px-5 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="locations-list" class="divide-y divide-slate-100 text-sm"></tbody>
-                    </table>
+
+                <!-- RIGHT COLUMN: FACILITIES MANAGEMENT -->
+                <div class="flex flex-col gap-4 min-h-0">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-900">Facilities</h3>
+                        <button onclick="document.getElementById('add-facility-form').classList.toggle('hidden')" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">
+                            <span class="material-symbols-outlined text-[14px]">add</span> Add Facility
+                        </button>
+                    </div>
+
+                    <!-- Add Facility Form -->
+                    <div id="add-facility-form" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                        <h4 class="font-bold text-sm text-slate-900">New Facility</h4>
+                        <input id="new-facility-name"    type="text" placeholder="Facility Name *"     class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <select id="new-facility-client" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"><option value="">-- Select Client --</option></select>
+                        <input id="new-facility-address" type="text" placeholder="Address *"           class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-facility-manager" type="text" placeholder="Site Manager Name"   class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <input id="new-facility-type"    type="text" placeholder="Service Type (e.g. commercial, medical, warehouse)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <div class="flex gap-2">
+                            <button onclick="createNewFacility()" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors">Register</button>
+                            <button onclick="document.getElementById('add-facility-form').classList.add('hidden')" class="flex-1 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 text-sm font-bold rounded-lg transition-colors">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Facilities List -->
+                    <div class="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 overflow-y-auto">
+                        <div id="facilities-list" class="divide-y divide-slate-100 text-sm"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -943,6 +970,106 @@
         <div class="flex gap-3 mt-5">
             <button onclick="closeDropModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
             <button onclick="confirmSchedulerDrop()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Create Shift</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     EDIT FACILITY MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="edit-facility-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-4">Edit Facility</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility Name</label>
+                <input type="text" id="edit-facility-name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Client</label>
+                <select id="edit-facility-client" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Address</label>
+                <input type="text" id="edit-facility-address" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Site Manager</label>
+                    <input type="text" id="edit-facility-manager" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Manager Phone</label>
+                    <input type="text" id="edit-facility-manager-phone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Manager Email</label>
+                <input type="email" id="edit-facility-manager-email" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Service Type</label>
+                    <input type="text" id="edit-facility-type" placeholder="e.g. commercial, medical" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Square Footage</label>
+                    <input type="number" id="edit-facility-sqft" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                <textarea id="edit-facility-notes" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" rows="3"></textarea>
+            </div>
+            <label class="flex items-center gap-2">
+                <input type="checkbox" id="edit-facility-active"/>
+                <span class="text-sm font-semibold text-slate-700">Active</span>
+            </label>
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeFacilityModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
+            <button onclick="saveFacilityChanges()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     EDIT CLIENT MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="edit-client-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-4">Edit Client</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Company Name</label>
+                <input type="text" id="edit-client-name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Contact Person</label>
+                <input type="text" id="edit-client-contact" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone</label>
+                    <input type="text" id="edit-client-phone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Email</label>
+                    <input type="email" id="edit-client-email" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Billing Address</label>
+                <input type="text" id="edit-client-address" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                <textarea id="edit-client-notes" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" rows="3"></textarea>
+            </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeClientModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
+            <button onclick="saveClientChanges()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Save Changes</button>
         </div>
     </div>
 </div>
