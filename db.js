@@ -40,9 +40,25 @@ class Database {
     loadData() {
         try {
             const raw = localStorage.getItem(DB_KEY);
-            return raw ? JSON.parse(raw) : (this.memoryStore || null);
+            const data = raw ? JSON.parse(raw) : (this.memoryStore || null);
+            if (data) this.migrateShiftSchema(data);
+            return data;
         } catch (err) {
             return this.memoryStore || null;
+        }
+    }
+
+    migrateShiftSchema(data) {
+        // Convert old single-staffId shifts to staffIds array
+        if (data.shifts) {
+            data.shifts.forEach(shift => {
+                if (shift.staffId && !shift.staffIds) {
+                    shift.staffIds = [shift.staffId];
+                }
+                if (!shift.type) shift.type = 'shift';
+                if (!shift.createdAt) shift.createdAt = new Date().toISOString();
+                if (shift.isRecurring === undefined) shift.isRecurring = false;
+            });
         }
     }
 
@@ -134,15 +150,15 @@ class Database {
                 { id: 'INV13', siteId: 'L5', item: 'Floor Degreaser',            qty: 2,  minQty: 4,  unit: 'gallons' }
             ],
             shifts: [
-                { id: 'SH1', staffId: 'S1', siteId: 'L1', targetTime: minNow(-25),  status: 'late',      notes: 'Needs critical attention.',         completedTasks: [] },
-                { id: 'SH2', staffId: 'S2', siteId: 'L2', targetTime: minNow(-120), status: 'active',    clockInTime: minNow(-120), notes: '',        completedTasks: [] },
-                { id: 'SH3', staffId: 'S3', siteId: 'L3', targetTime: minNow(30),   status: 'upcoming',  notes: 'VIP cleaning protocol required.',    completedTasks: [] },
-                { id: 'SH4', staffId: 'S4', siteId: 'L4', targetTime: minNow(-45),  status: 'active',    clockInTime: minNow(-45),  notes: '',        completedTasks: [] },
-                { id: 'SH5', staffId: 'S5', siteId: 'L5', targetTime: minNow(140),  status: 'upcoming',  notes: '',                                  completedTasks: [] },
-                { id: 'SH6', staffId: 'S6', siteId: 'L1', targetTime: minNow(-300), status: 'completed', clockInTime: minNow(-300), clockOutTime: minNow(-120), notes: '', completedTasks: ['Vacuum all carpeted areas', 'Mop hard floors', 'Empty trash bins'] },
-                { id: 'SH7', staffId: 'S7', siteId: 'L2', targetTime: minNow(60),   status: 'upcoming',  notes: '',                                  completedTasks: [] },
-                { id: 'SH8', staffId: 'S8', siteId: 'L3', targetTime: minNow(-10),  status: 'late',      notes: 'Traffic reported on highway.',       completedTasks: [] },
-                { id: 'SH9', staffId: 'S2', siteId: 'L4', targetTime: minNow(240),  status: 'upcoming',  notes: '',                                  completedTasks: [] }
+                { id: 'SH1', staffIds: ['S1'], siteId: 'L1', targetTime: minNow(-25),  status: 'late',      type: 'shift', isRecurring: false, notes: 'Needs critical attention.',         completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH2', staffIds: ['S2'], siteId: 'L2', targetTime: minNow(-120), status: 'active',    type: 'shift', isRecurring: false, clockInTime: minNow(-120), notes: '',        completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH3', staffIds: ['S3'], siteId: 'L3', targetTime: minNow(30),   status: 'upcoming',  type: 'shift', isRecurring: false, notes: 'VIP cleaning protocol required.',    completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH4', staffIds: ['S4'], siteId: 'L4', targetTime: minNow(-45),  status: 'active',    type: 'shift', isRecurring: false, clockInTime: minNow(-45),  notes: '',        completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH5', staffIds: ['S5'], siteId: 'L5', targetTime: minNow(140),  status: 'upcoming',  type: 'shift', isRecurring: false, notes: '',                                  completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH6', staffIds: ['S6'], siteId: 'L1', targetTime: minNow(-300), status: 'completed', type: 'shift', isRecurring: false, clockInTime: minNow(-300), clockOutTime: minNow(-120), notes: '', completedTasks: ['Vacuum all carpeted areas', 'Mop hard floors', 'Empty trash bins'], createdAt: now.toISOString() },
+                { id: 'SH7', staffIds: ['S7'], siteId: 'L2', targetTime: minNow(60),   status: 'upcoming',  type: 'shift', isRecurring: false, notes: '',                                  completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH8', staffIds: ['S8'], siteId: 'L3', targetTime: minNow(-10),  status: 'late',      type: 'shift', isRecurring: false, notes: 'Traffic reported on highway.',       completedTasks: [], createdAt: now.toISOString() },
+                { id: 'SH9', staffIds: ['S2'], siteId: 'L4', targetTime: minNow(240),  status: 'upcoming',  type: 'shift', isRecurring: false, notes: '',                                  completedTasks: [], createdAt: now.toISOString() }
             ],
             feedEvents: [
                 { id: 'E1', type: 'alert',   message: 'Alice Walker is 25m late for Site 44.',                   timestamp: minNow(-25)  },
@@ -164,11 +180,12 @@ class Database {
     getDashboardData() {
         const enrich = (s) => ({
             ...s,
-            staff: this.data.staff.find(m => m.id === s.staffId),
+            staffList: (s.staffIds || [s.staffId]).map(sid => this.data.staff.find(m => m.id === sid)),
+            staff: this.data.staff.find(m => m.id === (s.staffIds ? s.staffIds[0] : s.staffId)), // Primary staff
             site:  this.data.sites.find(l => l.id === s.siteId)
         });
         return {
-            shifts:    this.data.shifts.map(enrich),
+            shifts:    this.data.shifts.filter(s => !s.isRecurringTemplate).map(enrich),
             feed:      [...this.data.feedEvents].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
             staffList: this.data.staff,
             sites:     this.data.sites
@@ -198,7 +215,10 @@ class Database {
     // ─── Mobile ─────────────────────────────────────────────────────────────────
 
     getMobileStaffData(staffId) {
-        const staffShifts    = this.data.shifts.filter(s => s.staffId === staffId);
+        const staffShifts    = this.data.shifts.filter(s => {
+            const staffIds = s.staffIds || [s.staffId];
+            return staffIds.includes(staffId) && !s.isRecurringTemplate;
+        });
         const nextShift      = staffShifts.find(s => s.status === 'upcoming' || s.status === 'late');
         const activeShift    = staffShifts.find(s => s.status === 'active');
         const completedShifts = staffShifts
@@ -208,7 +228,8 @@ class Database {
         const expand = (s) => {
             if (!s) return null;
             const site      = this.data.sites.find(l => l.id === s.siteId);
-            const staff     = this.data.staff.find(m => m.id === s.staffId);
+            const primaryStaffId = (s.staffIds || [s.staffId])[0];
+            const staff     = this.data.staff.find(m => m.id === primaryStaffId);
             const taskConf  = this.data.siteTasks.find(t => t.siteId === s.siteId);
             const taskKey   = staff && staff.type === 'maintenance' ? 'maintenanceTasks' : 'cleanerTasks';
             const tasks     = taskConf ? taskConf[taskKey] : DEFAULT_CLEANER_TASKS;
@@ -309,13 +330,22 @@ class Database {
 
     // ─── Shifts CRUD ─────────────────────────────────────────────────────────────
 
-    createShift(staffId, siteId, targetTime, notes) {
+    createShift(staffId, siteId, targetTime, notes, type = 'shift') {
         const id = 'SH' + Date.now();
-        const shift = { id, staffId, siteId, targetTime, status: 'upcoming', notes: notes || '', completedTasks: [] };
+        const staffIds = Array.isArray(staffId) ? staffId : [staffId];
+        const shift = {
+            id, staffIds, siteId, targetTime,
+            status: 'upcoming',
+            type: type,
+            isRecurring: false,
+            notes: notes || '',
+            completedTasks: [],
+            createdAt: new Date().toISOString()
+        };
         this.data.shifts.push(shift);
-        const staff = this.data.staff.find(s => s.id === staffId);
+        const staffNames = staffIds.map(sid => this.data.staff.find(s => s.id === sid)?.name || sid).join(', ');
         const site  = this.data.sites.find(s => s.id === siteId);
-        this.addFeedEvent('info', `Shift created: ${staff ? staff.name : staffId} → ${site ? site.name : siteId}.`);
+        this.addFeedEvent('info', `${type.charAt(0).toUpperCase() + type.slice(1)} created: ${staffNames} → ${site ? site.name : siteId}.`);
         this.saveData();
         return shift;
     }
@@ -323,8 +353,8 @@ class Database {
     cancelShift(shiftId) {
         const shift = this.data.shifts.find(s => s.id === shiftId);
         if (shift) {
-            const staff = this.data.staff.find(s => s.id === shift.staffId);
-            this.addFeedEvent('info', `Shift cancelled${staff ? ' for ' + staff.name : ''}.`);
+            const staffNames = (shift.staffIds || [shift.staffId]).map(sid => this.data.staff.find(s => s.id === sid)?.name || sid).join(', ');
+            this.addFeedEvent('info', `Shift cancelled${staffNames ? ' for ' + staffNames : ''}.`);
         }
         this.data.shifts = this.data.shifts.filter(s => s.id !== shiftId);
         this.saveData();
@@ -333,12 +363,18 @@ class Database {
     updateShift(shiftId, updates) {
         const shift = this.data.shifts.find(s => s.id === shiftId);
         if (!shift) return;
-        ['staffId', 'siteId', 'targetTime', 'notes', 'status'].forEach(k => {
-            if (k in updates) shift[k] = updates[k];
+        ['staffIds', 'staffId', 'siteId', 'targetTime', 'notes', 'status', 'type', 'isRecurring', 'recurringPattern'].forEach(k => {
+            if (k in updates) {
+                if (k === 'staffId' && !('staffIds' in updates)) {
+                    shift.staffIds = [updates[k]];
+                } else if (k !== 'staffId') {
+                    shift[k] = updates[k];
+                }
+            }
         });
-        const staff = this.data.staff.find(s => s.id === shift.staffId);
+        const staffNames = (shift.staffIds || [shift.staffId]).map(sid => this.data.staff.find(s => s.id === sid)?.name || sid).join(', ');
         const site  = this.data.sites.find(s => s.id === shift.siteId);
-        this.addFeedEvent('info', `Shift updated${staff ? ' for ' + staff.name : ''}${site ? ' at ' + site.name : ''}.`);
+        this.addFeedEvent('info', `Shift updated${staffNames ? ' for ' + staffNames : ''}${site ? ' at ' + site.name : ''}.`);
         this.saveData();
     }
 
@@ -348,7 +384,8 @@ class Database {
         const targetDay = new Date(targetTime).toDateString();
         return this.data.shifts.find(s => {
             if (s.id === excludeShiftId) return false;
-            if (s.staffId !== staffId)   return false;
+            const staffIds = s.staffIds || [s.staffId];
+            if (!staffIds.includes(staffId)) return false;
             if (s.status === 'completed' || s.status === 'cancelled') return false;
             if (new Date(s.targetTime).toDateString() !== targetDay)  return false;
             return Math.abs(new Date(s.targetTime).getTime() - targetMs) / 3600000 < 4;
@@ -360,6 +397,104 @@ class Database {
         this.addFeedEvent('info', `📲 Notification → ${staff ? staff.name : staffId}: "${message}"`);
         this.saveData();
         return { staff, message };
+    }
+
+    // ─── Recurring Shifts ────────────────────────────────────────────────────
+
+    createRecurringShift(staffIds, siteId, targetTime, pattern, duration, notes) {
+        const id = 'SH' + Date.now();
+        const staffIdArray = Array.isArray(staffIds) ? staffIds : [staffIds];
+        const recurringShift = {
+            id,
+            staffIds: staffIdArray,
+            siteId,
+            targetTime,
+            status: 'upcoming',
+            type: 'shift',
+            isRecurring: true,
+            isRecurringTemplate: true,
+            recurringPattern: {
+                type: pattern.type,
+                endDate: pattern.endDate || null,
+                occurrences: pattern.occurrences || null,
+                parentId: null
+            },
+            notes: notes || '',
+            completedTasks: [],
+            createdAt: new Date().toISOString()
+        };
+        this.data.shifts.push(recurringShift);
+        this.expandRecurringShift(id, new Date(), pattern.endDate ? new Date(pattern.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000));
+        const staffNames = staffIdArray.map(sid => this.data.staff.find(s => s.id === sid)?.name || sid).join(', ');
+        const site = this.data.sites.find(s => s.id === siteId);
+        this.addFeedEvent('info', `Recurring shift created: ${staffNames} → ${site ? site.name : siteId} (${pattern.type}).`);
+        this.saveData();
+        return recurringShift;
+    }
+
+    expandRecurringShift(recurringShiftId, fromDate, toDate) {
+        const template = this.data.shifts.find(s => s.id === recurringShiftId);
+        if (!template || !template.isRecurring) return;
+
+        const pattern = template.recurringPattern;
+        let current = new Date(template.targetTime);
+        const endDate = toDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        let count = 0;
+
+        while (current <= endDate && (!pattern.occurrences || count < pattern.occurrences)) {
+            if (current >= fromDate) {
+                const instanceId = 'SH' + Date.now() + '_' + count;
+                const instance = {
+                    ...template,
+                    id: instanceId,
+                    isRecurringTemplate: false,
+                    targetTime: current.toISOString(),
+                    recurringPattern: { ...pattern, parentId: recurringShiftId }
+                };
+                this.data.shifts.push(instance);
+            }
+
+            // Calculate next occurrence
+            switch (pattern.type) {
+                case 'daily':
+                    current.setDate(current.getDate() + 1);
+                    break;
+                case 'weekly':
+                    current.setDate(current.getDate() + 7);
+                    break;
+                case 'biweekly':
+                    current.setDate(current.getDate() + 14);
+                    break;
+                case 'monthly':
+                    current.setMonth(current.getMonth() + 1);
+                    break;
+            }
+            count++;
+        }
+    }
+
+    getRecurringShifts() {
+        return this.data.shifts.filter(s => s.isRecurringTemplate);
+    }
+
+    getShiftsByDate(dateStr) {
+        const targetDate = new Date(dateStr).toDateString();
+        return this.data.shifts.filter(s => {
+            const shiftDate = new Date(s.targetTime).toDateString();
+            return shiftDate === targetDate && !s.isRecurringTemplate;
+        });
+    }
+
+    addStaffToShift(shiftId, staffId) {
+        const shift = this.data.shifts.find(s => s.id === shiftId);
+        if (!shift) return;
+        if (!shift.staffIds) shift.staffIds = [shift.staffId];
+        if (!shift.staffIds.includes(staffId)) {
+            shift.staffIds.push(staffId);
+            const staffName = this.data.staff.find(s => s.id === staffId)?.name || staffId;
+            this.addFeedEvent('info', `${staffName} added to shift.`);
+            this.saveData();
+        }
     }
 
     // ─── Site Tasks CRUD ─────────────────────────────────────────────────────────

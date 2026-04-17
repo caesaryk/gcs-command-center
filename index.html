@@ -221,27 +221,94 @@
 
             <!-- Create Shift Form (hidden by default) -->
             <div id="create-shift-form" class="hidden bg-white border border-blue-200 rounded-xl p-5 shadow-sm">
-                <h3 class="font-bold text-slate-900 mb-4">Create New Shift</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Staff Member</label>
-                        <select id="shift-staff" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
-                        <select id="shift-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Scheduled Time</label>
-                        <input type="datetime-local" id="shift-time" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
-                        <input type="text" id="shift-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                <h3 class="font-bold text-slate-900 mb-4">Create New Assignment</h3>
+
+                <!-- Type Selector -->
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Type</label>
+                    <div class="flex gap-2">
+                        <button type="button" class="shift-type-btn px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold" data-type="shift" onclick="selectShiftType('shift')">📅 Shift</button>
+                        <button type="button" class="shift-type-btn px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold" data-type="task" onclick="selectShiftType('task')">✓ Task (One-Time)</button>
                     </div>
                 </div>
+
+                <!-- Shift Type Specific Form -->
+                <div id="shift-form-fields" style="display: block;">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Staff Members</label>
+                            <select id="shift-staff" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" style="min-height:80px;"></select>
+                            <div class="text-xs text-slate-400 mt-1">Hold Ctrl to select multiple</div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
+                            <select id="shift-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Scheduled Time</label>
+                            <input type="datetime-local" id="shift-time" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                            <input type="text" id="shift-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        </div>
+                    </div>
+
+                    <!-- Recurring Options -->
+                    <div class="bg-slate-50 rounded-lg p-4 mb-4">
+                        <label class="flex items-center gap-2 mb-3">
+                            <input type="checkbox" id="shift-recurring" onchange="toggleRecurringOptions()" class="w-4 h-4"/>
+                            <span class="text-sm font-semibold text-slate-700">Make This Recurring</span>
+                        </label>
+                        <div id="recurring-options" style="display:none;" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Pattern</label>
+                                <select id="shift-pattern" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                                    <option value="daily">Every Day</option>
+                                    <option value="weekly">Every Week</option>
+                                    <option value="biweekly">Every 2 Weeks</option>
+                                    <option value="monthly">Every Month</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Ends</label>
+                                <select id="recurring-end-type" onchange="toggleRecurringEndOption()" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                                    <option value="date">On Date</option>
+                                    <option value="count">After N Shifts</option>
+                                </select>
+                            </div>
+                            <div id="recurring-end-field">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">End Date</label>
+                                <input type="date" id="shift-end-date" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Type Specific Form -->
+                <div id="task-form-fields" style="display: none;">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Staff Member</label>
+                            <select id="task-staff" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
+                            <select id="task-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Scheduled Time</label>
+                            <input type="datetime-local" id="task-time" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Task Description</label>
+                        <input type="text" id="task-notes" placeholder="What is this task?" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                </div>
+
                 <div class="flex gap-2 mt-4">
-                    <button onclick="submitCreateShift()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Save Shift</button>
+                    <button onclick="submitCreateShift()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Save Assignment</button>
                     <button onclick="toggleCreateShiftForm()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors">Cancel</button>
                 </div>
             </div>
@@ -258,9 +325,14 @@
                 <span class="text-xs text-slate-400">to</span>
                 <input type="date" id="shift-to-date"   onchange="setShiftDateRange('custom')" class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none"/>
             </div>
-            <!-- Status Filter Tabs -->
+            <!-- Type & Status Filter Tabs -->
             <div class="flex gap-2 flex-wrap">
-                <button onclick="filterShifts('all')"       id="sft-all"       class="shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold">All</button>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Type:</span>
+                <button onclick="filterShifts('all')"   id="sft-all"   class="shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold">All</button>
+                <button onclick="filterShifts('shift')" id="sft-shift" class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Shifts</button>
+                <button onclick="filterShifts('task')"  id="sft-task"  class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Tasks</button>
+                <span class="text-slate-300 mx-1">|</span>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Status:</span>
                 <button onclick="filterShifts('active')"    id="sft-active"    class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Active</button>
                 <button onclick="filterShifts('upcoming')"  id="sft-upcoming"  class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Upcoming</button>
                 <button onclick="filterShifts('late')"      id="sft-late"      class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Late</button>
