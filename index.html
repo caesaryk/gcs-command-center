@@ -74,6 +74,8 @@
             <span class="material-symbols-outlined text-[18px] text-slate-400">schedule</span><span>Shift Management</span></a>
         <a onclick="navigateView('scheduler',this)"   class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
             <span class="material-symbols-outlined text-[18px] text-slate-400">calendar_month</span><span>Advanced Scheduler</span></a>
+        <a onclick="navigateView('scheduleview',this)" class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">view_week</span><span>Schedule View</span></a>
         <a onclick="navigateView('staffdir',this)"    class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
             <span class="material-symbols-outlined text-[18px] text-slate-400">badge</span><span>Staff Directory</span></a>
         <a onclick="navigateView('locationsmgt',this)" class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
@@ -408,6 +410,60 @@
                         <div id="scheduler-grid" class="grid grid-cols-7 gap-px bg-slate-200 h-full overflow-y-auto text-sm"></div>
                     </section>
                 </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW: SCHEDULE VIEW
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-scheduleview" class="app-view gap-4 pb-6 flex-col">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-slate-900 text-lg font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">view_week</span>
+                        Schedule Overview
+                    </h2>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex flex-col lg:flex-row gap-3 items-start lg:items-center flex-wrap mb-4">
+                    <div class="flex gap-2">
+                        <button class="view-mode-btn active px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold transition-colors" onclick="setScheduleViewMode('week')">Week View</button>
+                        <button class="view-mode-btn px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold transition-colors" onclick="setScheduleViewMode('month')">Month View</button>
+                        <button class="view-mode-btn px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold transition-colors" onclick="setScheduleViewMode('list')">List View</button>
+                    </div>
+
+                    <div class="flex gap-2 items-center">
+                        <button onclick="previousScheduleWeek()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+                        <span id="schedule-date-range" class="text-sm font-semibold text-slate-700 min-w-[200px] text-center"></span>
+                        <button onclick="nextScheduleWeek()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+                    </div>
+
+                    <div class="flex gap-2 flex-wrap">
+                        <select id="schedule-filter-type" onchange="renderScheduleView()" class="px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="">All (Shifts & Tasks)</option>
+                            <option value="shift">Shifts Only</option>
+                            <option value="task">Tasks Only</option>
+                        </select>
+                        <select id="schedule-filter-staff" onchange="renderScheduleView()" class="px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="">All Staff</option>
+                        </select>
+                        <select id="schedule-filter-site" onchange="renderScheduleView()" class="px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="">All Sites</option>
+                        </select>
+                        <select id="schedule-filter-status" onchange="renderScheduleView()" class="px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- View Content -->
+                <div id="schedule-week-view" style="display:none;" class="overflow-x-auto"></div>
+                <div id="schedule-month-view" style="display:none;" class="overflow-x-auto"></div>
+                <div id="schedule-list-view" style="display:none;" class="overflow-x-auto"></div>
             </div>
         </div>
 
@@ -832,27 +888,61 @@
 
 <!-- Scheduler Drop Confirm Modal -->
 <div id="scheduler-drop-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-        <h3 class="font-bold text-slate-900 text-lg mb-1">Schedule Shift</h3>
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-1">Schedule Assignment</h3>
         <p id="drop-modal-subtitle" class="text-sm text-slate-500 mb-4"></p>
-        <div class="space-y-3">
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
-                <select id="drop-modal-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+
+        <!-- Existing Shifts Section -->
+        <div id="existing-shifts-section" class="mb-6">
+            <h4 class="font-semibold text-slate-700 text-sm mb-3">📅 Existing Shifts for This Date</h4>
+            <div id="existing-shifts-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                <p class="text-xs text-slate-400 italic">Loading shifts...</p>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Start Time</label>
-                <input type="time" id="drop-modal-time" value="08:00" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
-                <input type="text" id="drop-modal-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-            </div>
-            <div id="drop-conflict-warning" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-xs font-medium"></div>
+            <div class="text-center text-xs text-slate-400 py-3">─────────  OR  ─────────</div>
         </div>
+
+        <!-- Create New Shift Section -->
+        <div id="create-new-shift-section">
+            <h4 class="font-semibold text-slate-700 text-sm mb-3">✨ Create New Shift</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
+                    <select id="drop-modal-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Start Time</label>
+                        <input type="time" id="drop-modal-time" value="08:00" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Duration (hrs)</label>
+                        <input type="number" id="drop-modal-duration" value="8" min="1" max="12" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                    <input type="text" id="drop-modal-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                </div>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="drop-modal-recurring" onchange="toggleDropModalRecurring()"/>
+                    <span class="text-sm font-semibold text-slate-700">Make Recurring</span>
+                </label>
+                <div id="drop-recurring-options" style="display:none;" class="bg-blue-50 rounded-lg p-3 space-y-2">
+                    <select id="drop-modal-pattern" class="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm">
+                        <option value="daily">Every Day</option>
+                        <option value="weekly">Every Week</option>
+                        <option value="biweekly">Every 2 Weeks</option>
+                        <option value="monthly">Every Month</option>
+                    </select>
+                    <input type="date" id="drop-modal-end-date" placeholder="End date" class="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm"/>
+                </div>
+                <div id="drop-conflict-warning" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-xs font-medium"></div>
+            </div>
+        </div>
+
         <div class="flex gap-3 mt-5">
             <button onclick="closeDropModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
-            <button onclick="confirmSchedulerDrop()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Confirm &amp; Notify</button>
+            <button onclick="confirmSchedulerDrop()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Create Shift</button>
         </div>
     </div>
 </div>

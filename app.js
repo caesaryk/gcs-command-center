@@ -1,19 +1,21 @@
 // GCS Command Center — Manager Dashboard Logic
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let currentFeedFilter    = 'all';
-let currentShiftFilter   = 'all';
-let currentShiftDateRange = 'all';
-let shiftDateFrom        = null;
-let shiftDateTo          = null;
-let currentDirFilter     = 'all';
-let currentInvSiteFilter = 'all';
-let schedulerWeekOffset  = 0;
-let schedulerFilterSite  = 'all';
-let schedulerFilterStaff = 'all';
-let schedulerDragStaffId = null;
-let schedulerDragDateStr = null;
-let shiftDonutChart      = null;
+let currentFeedFilter      = 'all';
+let currentShiftFilter      = 'all';
+let currentShiftDateRange   = 'all';
+let shiftDateFrom           = null;
+let shiftDateTo             = null;
+let currentDirFilter        = 'all';
+let currentInvSiteFilter    = 'all';
+let schedulerWeekOffset     = 0;
+let schedulerFilterSite     = 'all';
+let schedulerFilterStaff    = 'all';
+let schedulerDragStaffId    = null;
+let schedulerDragDateStr    = null;
+let shiftDonutChart         = null;
+let scheduleViewMode        = 'week';
+let scheduleViewWeekOffset  = 0;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -68,16 +70,17 @@ window.changeRole = function (roleValue) {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 const VIEW_TITLES = {
-    cscenter:    'CS Center (Live)',
-    overview:    'Overview Dashboard',
-    shiftmgt:    'Shift Management',
-    scheduler:   'Advanced Scheduler',
-    staffdir:    'Staff Directory',
-    locationsmgt:'Facilities & Clients',
-    inventory:   'Inventory & Supply',
-    alerts:      'Alerts & Configs',
-    exceptions:  'Exceptions Drill-down',
-    reports:     'Reports & Billing',
+    cscenter:     'CS Center (Live)',
+    overview:     'Overview Dashboard',
+    shiftmgt:     'Shift Management',
+    scheduler:    'Advanced Scheduler',
+    scheduleview: 'Schedule View',
+    staffdir:     'Staff Directory',
+    locationsmgt: 'Facilities & Clients',
+    inventory:    'Inventory & Supply',
+    alerts:       'Alerts & Configs',
+    exceptions:   'Exceptions Drill-down',
+    reports:      'Reports & Billing',
     messagecenter:'AI Message Center'
 };
 
@@ -97,6 +100,7 @@ window.navigateView = function (viewId, el) {
     if (viewId === 'inventory')    renderInventory();
     if (viewId === 'exceptions')   renderExceptions();
     if (viewId === 'shiftmgt')     renderShiftManagement();
+    if (viewId === 'scheduleview') renderScheduleView();
     if (viewId === 'messagecenter') renderAIMessageCenter();
     if (viewId === 'scheduler')    renderScheduler();
 };
@@ -1065,6 +1069,7 @@ window.openSchedulerDropConfirm = function (staffId, dateStr) {
     const modal    = document.getElementById('scheduler-drop-modal');
     const subtitle = document.getElementById('drop-modal-subtitle');
     const siteEl   = document.getElementById('drop-modal-site');
+    const listEl   = document.getElementById('existing-shifts-list');
     const warnEl   = document.getElementById('drop-conflict-warning');
     if (!modal) return;
 
@@ -1072,6 +1077,40 @@ window.openSchedulerDropConfirm = function (staffId, dateStr) {
     if (subtitle) subtitle.textContent = `Scheduling ${staff.name} on ${displayDate}`;
     if (siteEl) {
         siteEl.innerHTML = data.sites.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
+    }
+
+    // Populate existing shifts for this date
+    const existingShifts = window.db.getShiftsByDate(dateStr);
+    if (listEl) {
+        if (existingShifts.length === 0) {
+            listEl.innerHTML = '<p class="text-xs text-slate-400 italic">No shifts scheduled for this date yet</p>';
+        } else {
+            listEl.innerHTML = existingShifts.map(shift => {
+                const shiftSite = data.sites.find(s => s.id === shift.siteId);
+                const shiftTime = new Date(shift.targetTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const staffList = shift.staffIds && Array.isArray(shift.staffIds)
+                    ? shift.staffIds.map(id => {
+                        const s = data.staffList.find(st => st.id === id);
+                        return s ? s.name : id;
+                      }).join(', ')
+                    : (shift.staff ? shift.staff.name : 'Unknown staff');
+                return `
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="text-sm font-semibold text-slate-900">${escapeHTML(shiftSite ? shiftSite.name : 'Unknown')}</div>
+                            <div class="text-xs text-slate-500">
+                                ${shiftTime} — ${staffList}
+                            </div>
+                        </div>
+                        <button
+                            class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors"
+                            onclick="addStaffToShift('${escapeHTML(shift.id)}', '${escapeHTML(staffId)}')">
+                            Add
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 
     // Check for existing conflict at 08:00
@@ -1087,6 +1126,10 @@ window.openSchedulerDropConfirm = function (staffId, dateStr) {
         }
     }
 
+    // Reset recurring options
+    document.getElementById('drop-modal-recurring').checked = false;
+    toggleDropModalRecurring();
+
     modal.setAttribute('data-staff-id', staffId);
     modal.setAttribute('data-date-str', dateStr);
     modal.classList.remove('hidden');
@@ -1099,6 +1142,43 @@ window.closeDropModal = function () {
     schedulerDragDateStr = null;
 };
 
+window.toggleDropModalRecurring = function () {
+    const checkbox = document.getElementById('drop-modal-recurring');
+    const options = document.getElementById('drop-recurring-options');
+    if (checkbox && options) {
+        options.style.display = checkbox.checked ? 'block' : 'none';
+    }
+};
+
+window.addStaffToShift = function (shiftId, staffId) {
+    if (!window.db) return;
+    const shift = window.db.data.shifts.find(s => s.id === shiftId);
+    if (!shift) return;
+
+    // Migrate old format to new format if needed
+    if (!Array.isArray(shift.staffIds)) {
+        shift.staffIds = shift.staffId ? [shift.staffId] : [];
+    }
+
+    // Check if staff already assigned
+    if (shift.staffIds.includes(staffId)) {
+        showToast('Staff member already assigned to this shift', 'warning');
+        return;
+    }
+
+    // Add staff to shift
+    shift.staffIds.push(staffId);
+    window.db.saveData();
+    window.db.notifyStaff(staffId, `You've been added to a shift`);
+
+    const staff = window.db.data.staff.find(s => s.id === staffId);
+    showToast(`${staff ? staff.name : 'Staff'} added to shift!`, 'success');
+
+    // Refresh the existing shifts list
+    openSchedulerDropConfirm(staffId, schedulerDragDateStr);
+    renderScheduler();
+};
+
 window.confirmSchedulerDrop = function () {
     const modal   = document.getElementById('scheduler-drop-modal');
     if (!modal) return;
@@ -1106,7 +1186,10 @@ window.confirmSchedulerDrop = function () {
     const dateStr = modal.getAttribute('data-date-str');
     const siteId  = document.getElementById('drop-modal-site').value;
     const timeVal = document.getElementById('drop-modal-time').value || '08:00';
-    const notes   = document.getElementById('drop-modal-notes').value;
+    const durationHrs = parseInt(document.getElementById('drop-modal-duration').value) || 8;
+    const notes   = document.getElementById('drop-modal-notes').value || 'Drag-scheduled';
+    const isRecurring = document.getElementById('drop-modal-recurring').checked;
+
     if (!staffId || !siteId || !dateStr) return;
 
     const [h, m]   = timeVal.split(':').map(Number);
@@ -1121,11 +1204,24 @@ window.confirmSchedulerDrop = function () {
         if (!confirm(`${window.db.data.staff.find(s=>s.id===staffId)?.name} already has a shift at ${cSite?.name || ''} near this time. Add anyway?`)) return;
     }
 
-    const shift = window.db.createShift(staffId, siteId, targetTime, notes || 'Drag-scheduled');
     const staff = window.db.data.staff.find(s => s.id === staffId);
     const site  = window.db.data.sites.find(s => s.id === siteId);
-    window.db.notifyStaff(staffId, `New shift scheduled: ${site ? site.name : ''} on ${target.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} at ${target.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`);
-    showToast(`Shift created for ${staff ? staff.name : ''} — notification sent!`, 'success');
+    const durationMin = durationHrs * 60;
+
+    if (isRecurring) {
+        const pattern = document.getElementById('drop-modal-pattern').value;
+        const endDate = document.getElementById('drop-modal-end-date').value;
+        const recurringPattern = {
+            type: pattern,
+            endDate: endDate ? (new Date(endDate).toISOString().split('T')[0] + 'T23:59:59Z') : null
+        };
+        window.db.createRecurringShift([staffId], siteId, targetTime, recurringPattern, durationMin, notes);
+        showToast(`Recurring shift created for ${staff ? staff.name : ''} — notifications will be sent!`, 'success');
+    } else {
+        window.db.createShift(staffId, siteId, targetTime, notes, durationMin, 'shift');
+        window.db.notifyStaff(staffId, `New shift scheduled: ${site ? site.name : ''} on ${target.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} at ${target.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`);
+        showToast(`Shift created for ${staff ? staff.name : ''} — notification sent!`, 'success');
+    }
 
     closeDropModal();
     renderScheduler();
@@ -1867,6 +1963,281 @@ window.saveApiKey = function () {
     if (status) { status.textContent = 'Key saved successfully.'; setTimeout(() => { status.textContent = ''; }, 3000); }
 };
 
+// ─── Schedule View ────────────────────────────────────────────────────────────
+
+window.setScheduleViewMode = function (mode) {
+    scheduleViewMode = mode;
+    document.querySelectorAll('.view-mode-btn').forEach(btn => btn.classList.remove('active', 'bg-slate-900', 'text-white'));
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+        if (btn.textContent.toLowerCase().includes(mode.replace('_', ' '))) {
+            btn.classList.add('active', 'bg-slate-900', 'text-white');
+        } else {
+            btn.classList.add('bg-white', 'border', 'border-slate-200', 'text-slate-600', 'hover:bg-slate-50');
+        }
+    });
+    renderScheduleView();
+};
+
+window.previousScheduleWeek = function () {
+    scheduleViewWeekOffset--;
+    renderScheduleView();
+};
+
+window.nextScheduleWeek = function () {
+    scheduleViewWeekOffset++;
+    renderScheduleView();
+};
+
+window.renderScheduleView = function () {
+    const data = window.db.getDashboardData();
+
+    // Get filter values
+    const typeFilter = document.getElementById('schedule-filter-type')?.value || '';
+    const staffFilter = document.getElementById('schedule-filter-staff')?.value || '';
+    const siteFilter = document.getElementById('schedule-filter-site')?.value || '';
+    const statusFilter = document.getElementById('schedule-filter-status')?.value || '';
+
+    // Populate filter dropdowns if needed
+    const staffSel = document.getElementById('schedule-filter-staff');
+    if (staffSel && staffSel.children.length <= 1) {
+        const staffOptions = data.staffList.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
+        staffSel.innerHTML = '<option value="">All Staff</option>' + staffOptions;
+    }
+    const siteSel = document.getElementById('schedule-filter-site');
+    if (siteSel && siteSel.children.length <= 1) {
+        const siteOptions = data.sites.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
+        siteSel.innerHTML = '<option value="">All Sites</option>' + siteOptions;
+    }
+
+    // Filter shifts
+    let shifts = data.shifts.filter(s => {
+        if (typeFilter && s.type !== typeFilter) return false;
+        if (staffFilter && s.staffIds) {
+            if (!Array.isArray(s.staffIds)) return s.staffId === staffFilter;
+            return s.staffIds.includes(staffFilter);
+        }
+        if (siteFilter && s.siteId !== siteFilter) return false;
+        if (statusFilter && s.status !== statusFilter) return false;
+        return true;
+    });
+
+    // Render based on mode
+    if (scheduleViewMode === 'week') {
+        renderScheduleWeekView(shifts, data);
+    } else if (scheduleViewMode === 'month') {
+        renderScheduleMonthView(shifts, data);
+    } else {
+        renderScheduleListView(shifts, data);
+    }
+};
+
+window.renderScheduleWeekView = function (shifts, data) {
+    const container = document.getElementById('schedule-week-view');
+    if (!container) return;
+
+    const today = new Date();
+    today.setDate(today.getDate() + scheduleViewWeekOffset * 7);
+    const week = getWeekDates(today);
+
+    // Update date range display
+    const rangeEl = document.getElementById('schedule-date-range');
+    if (rangeEl) {
+        rangeEl.textContent = `${week[0].toLocaleDateString('en-US', {month:'short', day:'numeric'})} - ${week[6].toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}`;
+    }
+
+    let html = '<table class="w-full border-collapse text-xs"><thead><tr>';
+    week.forEach(d => {
+        const dayName = d.toLocaleDateString('en-US', {weekday:'short'});
+        const dayDate = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric'});
+        html += `<th class="border border-slate-200 bg-slate-50 p-2 font-bold text-center">${dayName}<br/>${dayDate}</th>`;
+    });
+    html += '</tr></thead><tbody><tr>';
+
+    week.forEach(d => {
+        const dateStr = d.toISOString().split('T')[0];
+        const dayShifts = shifts.filter(s => new Date(s.targetTime).toISOString().split('T')[0] === dateStr);
+
+        let cellContent = '';
+        if (dayShifts.length === 0) {
+            cellContent = '<p class="text-slate-400 italic p-2">No shifts</p>';
+        } else {
+            cellContent = dayShifts.map(shift => {
+                const site = data.sites.find(s => s.id === shift.siteId);
+                const time = new Date(shift.targetTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const staffList = shift.staffIds && Array.isArray(shift.staffIds)
+                    ? shift.staffIds.map(id => {
+                        const s = data.staffList.find(st => st.id === id);
+                        return s ? s.name : id;
+                      }).join(', ')
+                    : (shift.staff ? shift.staff.name : 'Unknown');
+                const badgeColor = shift.type === 'task' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
+                return `
+                    <div class="p-1.5 mb-1 rounded border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100">
+                        <div class="font-bold text-[10px]">${escapeHTML(site ? site.name : 'Unknown')}</div>
+                        <div class="text-[9px] text-slate-600">${time}</div>
+                        <div class="text-[9px] text-slate-500">${escapeHTML(staffList)}</div>
+                        <span class="inline-block ${badgeColor} px-1.5 py-0.5 rounded text-[8px] font-bold mt-0.5">${shift.type === 'task' ? 'TASK' : shift.status}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        html += `<td class="border border-slate-200 p-2 bg-white align-top min-w-[120px]">${cellContent}</td>`;
+    });
+    html += '</tr></tbody></table>';
+    container.innerHTML = html;
+
+    // Show week view, hide others
+    document.getElementById('schedule-week-view').style.display = 'block';
+    document.getElementById('schedule-month-view').style.display = 'none';
+    document.getElementById('schedule-list-view').style.display = 'none';
+};
+
+window.renderScheduleMonthView = function (shifts, data) {
+    const container = document.getElementById('schedule-month-view');
+    if (!container) return;
+
+    const today = new Date();
+    today.setDate(today.getDate() + scheduleViewWeekOffset * 7);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+
+    // Update date range display
+    const rangeEl = document.getElementById('schedule-date-range');
+    if (rangeEl) {
+        rangeEl.textContent = new Date(year, month).toLocaleDateString('en-US', {month:'long', year:'numeric'});
+    }
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    let html = '<table class="w-full border-collapse text-xs"><thead><tr>';
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+        html += `<th class="border border-slate-200 bg-slate-50 p-2 font-bold text-center">${day}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    let dayCounter = 1;
+    for (let week = 0; week < 6; week++) {
+        html += '<tr>';
+        for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+            if (week === 0 && dayOfWeek < startingDayOfWeek) {
+                html += '<td class="border border-slate-200 bg-slate-100 h-24"></td>';
+            } else if (dayCounter > daysInMonth) {
+                html += '<td class="border border-slate-200 bg-slate-100 h-24"></td>';
+            } else {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dayCounter).padStart(2,'0')}`;
+                const dayShifts = shifts.filter(s => new Date(s.targetTime).toISOString().split('T')[0] === dateStr);
+                const shiftCount = dayShifts.length;
+                const staffNames = [...new Set(dayShifts.flatMap(s =>
+                    s.staffIds && Array.isArray(s.staffIds) ? s.staffIds : [s.staffId]
+                ))].map(id => {
+                    const s = data.staffList.find(st => st.id === id);
+                    return s ? s.name : id;
+                });
+
+                html += `<td class="border border-slate-200 bg-white p-2 h-24 overflow-hidden align-top">
+                    <div class="font-bold text-xs text-slate-900 mb-1">${dayCounter}</div>
+                    <div class="text-[10px]">
+                        ${shiftCount > 0 ? `<div class="bg-blue-100 text-blue-700 px-1 py-0.5 rounded font-bold mb-1">${shiftCount} shift${shiftCount > 1 ? 's' : ''}</div>` : ''}
+                        ${staffNames.length > 0 ? `<div class="text-slate-600 text-[9px]">${staffNames.slice(0, 2).join('<br>')}</div>` : ''}
+                    </div>
+                </td>`;
+                dayCounter++;
+            }
+        }
+        html += '</tr>';
+        if (dayCounter > daysInMonth) break;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // Show month view, hide others
+    document.getElementById('schedule-week-view').style.display = 'none';
+    document.getElementById('schedule-month-view').style.display = 'block';
+    document.getElementById('schedule-list-view').style.display = 'none';
+};
+
+window.renderScheduleListView = function (shifts, data) {
+    const container = document.getElementById('schedule-list-view');
+    if (!container) return;
+
+    // Update date range display
+    const rangeEl = document.getElementById('schedule-date-range');
+    if (rangeEl) {
+        rangeEl.textContent = 'All shifts';
+    }
+
+    if (shifts.length === 0) {
+        container.innerHTML = '<p class="text-center text-slate-400 italic p-6">No shifts found</p>';
+        document.getElementById('schedule-week-view').style.display = 'none';
+        document.getElementById('schedule-month-view').style.display = 'none';
+        document.getElementById('schedule-list-view').style.display = 'block';
+        return;
+    }
+
+    // Sort by date
+    shifts.sort((a, b) => new Date(a.targetTime) - new Date(b.targetTime));
+
+    let html = '<table class="w-full"><thead><tr class="bg-slate-50 border-b-2 border-slate-200">' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Date</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Time</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Duration</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Staff</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Site</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Status</th>' +
+        '<th class="text-left px-4 py-3 font-bold text-sm">Type</th>' +
+        '</tr></thead><tbody>';
+
+    shifts.forEach(s => {
+        const date = new Date(s.targetTime).toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+        const time = new Date(s.targetTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const duration = s.duration ? `${Math.round(s.duration / 60)}h` : '8h';
+        const staffList = s.staffIds && Array.isArray(s.staffIds)
+            ? s.staffIds.map(id => {
+                const st = data.staffList.find(st => st.id === id);
+                return st ? st.name : id;
+              }).join(', ')
+            : (s.staff ? s.staff.name : 'Unknown');
+        const site = data.sites.find(st => st.id === s.siteId);
+        const statusBadge = s.type === 'task'
+            ? '<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">TASK</span>'
+            : `<span class="bg-${s.status === 'active' ? 'emerald' : 'blue'}-100 text-${s.status === 'active' ? 'emerald' : 'blue'}-700 px-2 py-1 rounded text-xs font-bold">${s.status}</span>`;
+
+        html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 text-sm">${date}</td>
+            <td class="px-4 py-3 text-sm">${time}</td>
+            <td class="px-4 py-3 text-sm">${duration}</td>
+            <td class="px-4 py-3 text-sm text-slate-700">${escapeHTML(staffList)}</td>
+            <td class="px-4 py-3 text-sm">${escapeHTML(site ? site.name : 'Unknown')}</td>
+            <td class="px-4 py-3 text-sm">${statusBadge}</td>
+            <td class="px-4 py-3 text-sm">${s.type === 'task' ? 'Task' : 'Shift'}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // Show list view, hide others
+    document.getElementById('schedule-week-view').style.display = 'none';
+    document.getElementById('schedule-month-view').style.display = 'none';
+    document.getElementById('schedule-list-view').style.display = 'block';
+};
+
+function getWeekDates(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    const sunday = new Date(d.setDate(diff));
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+        const next = new Date(sunday);
+        next.setDate(next.getDate() + i);
+        week.push(next);
+    }
+    return week;
+}
+
 // ─── Global Search ────────────────────────────────────────────────────────────
 
 window.handleSearch = function (query) {
@@ -1877,4 +2248,5 @@ window.handleSearch = function (query) {
     if (active.id === 'view-staffdir')    renderStaffDirectory(data.staffList, data.shifts);
     if (active.id === 'view-locationsmgt') renderLocations(data.sites, data.shifts);
     if (active.id === 'view-shiftmgt')    renderShiftManagement();
+    if (active.id === 'view-scheduleview') renderScheduleView();
 };
