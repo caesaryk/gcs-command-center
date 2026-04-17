@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>GCS Field App</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a75b8'/><text y='.9em' font-size='70' x='12'>C</text></svg>"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary":     "#0a75b8",
+                        "primary-dark":"#085d94"
+                    },
+                    fontFamily: { "sans": ["Public Sans", "sans-serif"] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Public Sans', sans-serif; background: #e8edf2; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+        /* Hold-to-clock-in button */
+        .fab-clock-in {
+            position: relative; overflow: hidden;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .fab-clock-in::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 1.5s cubic-bezier(0.1, 0, 0.2, 1);
+        }
+        .fab-clock-in.holding { transform: scale(0.95); box-shadow: 0 4px 20px rgba(10,117,184,0.4); }
+        .fab-clock-in.holding::after { transform: scale(1); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-sm mx-auto min-h-screen flex flex-col bg-white shadow-2xl">
+
+        <!-- Header -->
+        <header class="bg-primary px-5 pt-10 pb-8 rounded-b-[28px]">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <div class="text-white/70 text-xs font-semibold uppercase tracking-widest">GCS Field App</div>
+                    <div class="text-white font-black text-xl mt-0.5">CleanOps Pro</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="logout()" class="text-white/70 hover:text-white text-xs font-semibold underline transition-colors">Logout</button>
+                    <div id="user-avatar" class="w-9 h-9 rounded-full bg-white text-primary flex items-center justify-center font-black text-sm"></div>
+                </div>
+            </div>
+            <div id="status-banner" class="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2">
+                <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-white/50"></div>
+                <span id="status-text" class="text-white font-semibold text-sm">Off Shift</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content" class="flex-1 px-5 py-6 flex flex-col items-center">
+            <!-- Rendered by mobile.js -->
+        </main>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="mobile.js"></script>
+</body>
+</html>

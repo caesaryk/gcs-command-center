@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CleanOps Pro — Command Center</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a75b8'/><text y='.9em' font-size='70' x='12'>C</text></svg>"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary":          "#0a75b8",
+                        "primary-dark":     "#085d94",
+                        "background-light": "#f5f7f8",
+                        "surface":          "#FDFBFF",
+                        "text-main":        "#1A1C1E",
+                        "muted":            "#73777F",
+                        "error-bg":         "#FFDAD6",
+                        "error-text":       "#BA1A1A",
+                        "warning-bg":       "#FFEFD6",
+                        "warning-text":     "#B38E00",
+                        "success-text":     "#146C2E"
+                    },
+                    fontFamily: {
+                        "sans":    ["Public Sans", "sans-serif"],
+                        "display": ["IBM Plex Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .app-view         { display: none; width: 100%; height: 100%; }
+        .app-view.active  { display: flex; flex-direction: column; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide   { -ms-overflow-style: none; scrollbar-width: none; }
+        .nav-master-btn.active { background: #eff6ff; color: #1d4ed8; font-weight: 700; }
+        .nav-master-btn.active .material-symbols-outlined { color: #1d4ed8; }
+        /* Drawer */
+        .drawer           { position: fixed; top: 0; right: -500px; width: 460px; height: 100vh; background: white; border-left: 1px solid #e2e8f0; box-shadow: -8px 0 32px rgba(0,0,0,0.12); transition: right 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 200; display: flex; flex-direction: column; }
+        .drawer.open      { right: 0; }
+        .drawer-overlay   { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 199; }
+        .drawer-overlay.open { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 flex overflow-hidden h-screen font-sans">
+
+<!-- ═══════════════════════════════════════════════════════════
+     GLOBAL SIDEBAR NAVIGATION
+═══════════════════════════════════════════════════════════════ -->
+<aside class="hidden md:flex flex-col h-full bg-white border-r border-slate-200 w-60 shrink-0 overflow-y-auto">
+    <div class="flex items-center gap-3 px-4 py-5 border-b border-slate-100">
+        <div class="w-8 h-8 bg-primary text-white flex items-center justify-center rounded-lg font-black text-lg">C</div>
+        <div>
+            <div class="text-sm font-black text-slate-900 leading-none">CleanOps Pro</div>
+            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Admin Console</div>
+        </div>
+    </div>
+
+    <nav class="flex-1 px-2 py-3 space-y-0.5 text-sm">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-3 pb-1">Operations</p>
+        <a onclick="navigateView('cscenter',this)"    class="nav-master-btn active flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">public</span><span>CS Center (Live)</span></a>
+        <a onclick="navigateView('shiftmgt',this)"    class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">schedule</span><span>Shift Management</span></a>
+        <a onclick="navigateView('scheduler',this)"   class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">calendar_month</span><span>Advanced Scheduler</span></a>
+        <a onclick="navigateView('staffdir',this)"    class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">badge</span><span>Staff Directory</span></a>
+        <a onclick="navigateView('locationsmgt',this)" class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">domain</span><span>Facilities & Clients</span></a>
+        <a onclick="navigateView('inventory',this)"   class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">inventory_2</span><span>Inventory & Supply</span></a>
+        <a onclick="navigateView('alerts',this)"      class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">tune</span><span>Alerts & Configs</span></a>
+
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-4 pb-1">Analytics</p>
+        <a onclick="navigateView('overview',this)"    class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">dashboard</span><span>Overview Dashboard</span></a>
+        <a onclick="navigateView('exceptions',this)"  class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">warning</span><span>Exceptions Drill-down</span></a>
+        <a onclick="navigateView('reports',this)"     class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">analytics</span><span>Reports & Billing</span></a>
+
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-4 pb-1">Communications</p>
+        <a onclick="navigateView('messagecenter',this)" class="nav-master-btn flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">smart_toy</span><span>AI Message Center</span></a>
+    </nav>
+
+    <div class="px-2 py-3 border-t border-slate-100">
+        <button onclick="confirmResetData()" class="w-full flex items-center gap-3 px-3 py-2 text-red-500 hover:bg-red-50 cursor-pointer rounded-lg text-sm font-medium transition-colors">
+            <span class="material-symbols-outlined text-[18px]">delete_forever</span><span>Reset Demo Data</span>
+        </button>
+    </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN CONTENT AREA
+═══════════════════════════════════════════════════════════════ -->
+<main class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+
+    <!-- TOP HEADER BAR -->
+    <header class="flex shrink-0 items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shadow-sm z-40 h-16">
+        <h1 id="top-nav-title" class="text-lg font-bold text-slate-900">CS Center (Live)</h1>
+        <div class="flex items-center gap-3 flex-1 justify-end">
+            <div class="max-w-xs w-full relative hidden sm:block">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                <input id="global-search" oninput="handleSearch(this.value)" class="w-full pl-9 pr-4 py-1.5 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-blue-400 outline-none transition-all" placeholder="Search staff, sites…" type="text"/>
+            </div>
+            <button onclick="navigateView('cscenter', document.querySelector('[onclick*=cscenter]'))" class="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors relative" title="Alerts">
+                <span class="material-symbols-outlined text-[22px]">notifications</span>
+                <span id="alert-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full hidden"></span>
+            </button>
+            <div class="flex items-center gap-3 border-l border-slate-200 pl-3">
+                <div class="flex flex-col text-right">
+                    <span id="user-name-display" class="font-bold text-sm text-slate-900">Manager</span>
+                    <div class="flex items-center gap-2 justify-end">
+                        <select id="role-switcher" onchange="changeRole(this.value)" class="text-xs text-blue-600 bg-transparent border-none p-0 cursor-pointer hover:underline outline-none">
+                            <option value="manager">As Manager</option>
+                            <option value="supervisor">As Supervisor</option>
+                            <option value="cleaner">As Cleaner</option>
+                            <option value="maintenance">As Maintenance</option>
+                        </select>
+                        <a onclick="logout()" class="text-xs text-slate-400 hover:text-red-500 underline cursor-pointer">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENT CANVAS -->
+    <div id="main-viewport" class="flex-1 overflow-y-auto p-4 md:p-6">
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 1: CS CENTER (LIVE)
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-cscenter" class="app-view active gap-4">
+            <!-- Alert Ribbon -->
+            <section class="shrink-0">
+                <div class="flex items-center justify-between mb-2 px-1">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Critical Exceptions</h3>
+                    <span id="alert-counter" class="text-xs font-semibold text-slate-500"></span>
+                </div>
+                <div id="alerts-bar" class="flex gap-3 overflow-x-auto scrollbar-hide pb-1 min-h-[88px]"></div>
+            </section>
+            <!-- Map + Feed -->
+            <div class="flex flex-1 gap-4 overflow-hidden min-h-[460px]">
+                <section class="flex-[2] bg-white rounded-xl border border-slate-200 overflow-hidden relative shadow-sm flex flex-col">
+                    <div class="absolute top-3 right-3 z-10 flex flex-col gap-1">
+                        <button class="bg-white p-1.5 rounded-lg shadow border border-slate-100 text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">add</span></button>
+                        <button class="bg-white p-1.5 rounded-lg shadow border border-slate-100 text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">remove</span></button>
+                    </div>
+                    <div class="w-full h-full bg-cover bg-center relative" style='background-image:url("https://lh3.googleusercontent.com/aida-public/AB6AXuD03ONpWZh98kUF3R4c6Fn_Z3OKox-zVnPierN710_7mRfWwLj2uHpGpp_joXeka6IFBX-dbv8bgcWaCbzc7UEdx9qCrdbye7Yk8wRjqOHGCL5wjiM-1NglYNaaaRLc0zmArdzoYGFLhy7BDe6gujP1QPtVx7H3pxkF5AukPBQvFAiFvItJhzzS59VyB_5yWeDmIOZEz1Zhci3htfDYwcbZtbpJKCIopoaGnX3g2FPn-1y6C37AZKe7SMFUKdal9L0DBVcOyaGJU6CC");'>
+                        <div id="map-pins" class="absolute inset-0"></div>
+                    </div>
+                </section>
+                <aside class="flex-[1] min-w-[260px] max-w-[340px] bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-slate-100 bg-white shrink-0">
+                        <h3 class="text-sm font-bold text-slate-900 mb-2">Operations Feed</h3>
+                        <div class="flex gap-2">
+                            <button id="feed-filter-all"    onclick="setFeedFilter('all')"   class="px-3 py-1 bg-slate-900 text-white rounded-full text-xs font-semibold">All</button>
+                            <button id="feed-filter-issues" onclick="setFeedFilter('issues')" class="px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-full text-xs font-semibold">Issues</button>
+                        </div>
+                    </div>
+                    <div id="feed-list" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2 bg-slate-50"></div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 2: OVERVIEW DASHBOARD
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-overview" class="app-view gap-6 pb-6">
+            <!-- KPI Cards -->
+            <div id="overview-kpi-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-bold text-slate-700 mb-1 text-sm">Shift Status Breakdown</h3>
+                    <p class="text-xs text-slate-400 mb-4">Current shift distribution</p>
+                    <div class="h-52 flex items-center justify-center">
+                        <canvas id="shift-donut-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-bold text-slate-700 mb-1 text-sm">Top Exception Sites</h3>
+                    <p class="text-xs text-slate-400 mb-4">Late shifts by location</p>
+                    <div id="exception-site-bars" class="flex flex-col gap-3"></div>
+                </div>
+            </div>
+            <!-- Recent Feed -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="font-bold text-slate-700 mb-3 text-sm">Recent Activity</h3>
+                <div id="overview-feed" class="flex flex-col gap-2 max-h-52 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 3: SHIFT MANAGEMENT
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-shiftmgt" class="app-view gap-4 pb-6">
+            <!-- Header + Create Button -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Shift Management</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Deploy, edit, and monitor all active shifts</p>
+                </div>
+                <button onclick="toggleCreateShiftForm()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">add</span> New Shift
+                </button>
+            </div>
+
+            <!-- Create Shift Form (hidden by default) -->
+            <div id="create-shift-form" class="hidden bg-white border border-blue-200 rounded-xl p-5 shadow-sm">
+                <h3 class="font-bold text-slate-900 mb-4">Create New Shift</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Staff Member</label>
+                        <select id="shift-staff" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
+                        <select id="shift-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Scheduled Time</label>
+                        <input type="datetime-local" id="shift-time" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                        <input type="text" id="shift-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="submitCreateShift()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Save Shift</button>
+                    <button onclick="toggleCreateShiftForm()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Date Range Filter -->
+            <div class="flex items-center gap-2 flex-wrap bg-white border border-slate-200 rounded-xl px-4 py-3">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Date Range:</span>
+                <button onclick="setShiftDateRange('all')"   id="sdr-all"   class="shift-date-range-btn px-3 py-1 bg-slate-900 text-white rounded-full text-xs font-bold">All</button>
+                <button onclick="setShiftDateRange('today')" id="sdr-today" class="shift-date-range-btn px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Today</button>
+                <button onclick="setShiftDateRange('week')"  id="sdr-week"  class="shift-date-range-btn px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">This Week</button>
+                <button onclick="setShiftDateRange('month')" id="sdr-month" class="shift-date-range-btn px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">This Month</button>
+                <span class="text-slate-300 mx-1">|</span>
+                <input type="date" id="shift-from-date" onchange="setShiftDateRange('custom')" class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none"/>
+                <span class="text-xs text-slate-400">to</span>
+                <input type="date" id="shift-to-date"   onchange="setShiftDateRange('custom')" class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <!-- Status Filter Tabs -->
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="filterShifts('all')"       id="sft-all"       class="shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold">All</button>
+                <button onclick="filterShifts('active')"    id="sft-active"    class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Active</button>
+                <button onclick="filterShifts('upcoming')"  id="sft-upcoming"  class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Upcoming</button>
+                <button onclick="filterShifts('late')"      id="sft-late"      class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Late</button>
+                <button onclick="filterShifts('completed')" id="sft-completed" class="shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Completed</button>
+            </div>
+
+            <!-- Shifts Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[640px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-5 py-3">Staff Member</th>
+                                <th class="px-5 py-3">Facility / Site</th>
+                                <th class="px-5 py-3">Scheduled Time</th>
+                                <th class="px-5 py-3">Status</th>
+                                <th class="px-5 py-3">Notes</th>
+                                <th class="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shift-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 4: ADVANCED SCHEDULER
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-scheduler" class="app-view h-full">
+            <div class="flex flex-col flex-1 h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <header class="flex flex-col border-b border-slate-200 bg-slate-50 px-5 py-3 shrink-0 gap-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-primary text-[20px]">calendar_month</span>
+                            <h2 class="text-slate-900 text-base font-bold">Advanced Scheduler</h2>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1">
+                                <button onclick="navigateSchedulerWeek(-1)" class="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+                                <span id="scheduler-week-label" class="font-medium text-sm text-slate-700 min-w-[180px] text-center"></span>
+                                <button onclick="navigateSchedulerWeek(1)"  class="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+                            </div>
+                            <button onclick="autoAssignSchedule()" class="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px]">auto_awesome</span> Auto-Assign
+                            </button>
+                            <button onclick="publishSchedule()" class="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary-dark transition-colors flex items-center gap-1.5 shadow-sm">
+                                <span class="material-symbols-outlined text-[16px]">publish</span> Publish &amp; Notify
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Scheduler filters row -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Filter:</span>
+                        <select id="scheduler-filter-site"  onchange="setSchedulerFilter('site',this.value)"  class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="all">All Clients</option>
+                        </select>
+                        <select id="scheduler-filter-staff" onchange="setSchedulerFilter('staff',this.value)" class="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="all">All Staff</option>
+                        </select>
+                        <span class="text-xs text-slate-400 ml-2">💡 Drag staff onto a day to schedule</span>
+                    </div>
+                </header>
+                <div class="flex flex-1 overflow-hidden">
+                    <aside class="w-64 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
+                        <div class="p-3 border-b border-slate-200 bg-white sticky top-0">
+                            <h3 class="font-bold text-sm text-slate-800 mb-2">Available Staff</h3>
+                            <input id="scheduler-search" oninput="filterSchedulerPool(this.value)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Search staff…"/>
+                        </div>
+                        <div id="scheduler-staff-pool" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+                    </aside>
+                    <section class="flex-1 overflow-hidden">
+                        <div id="scheduler-grid" class="grid grid-cols-7 gap-px bg-slate-200 h-full overflow-y-auto text-sm"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 5: STAFF DIRECTORY
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-staffdir" class="app-view gap-5 pb-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Staff</span>
+                    <div class="flex items-baseline gap-2 mt-1"><span id="stat-total-staff" class="text-3xl font-extrabold text-slate-900">—</span></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clocked In Now</span>
+                    <div class="flex items-baseline gap-2 mt-1"><span id="stat-clocked-in" class="text-3xl font-extrabold text-blue-600">—</span></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cleaners</span>
+                    <div class="flex items-baseline gap-2 mt-1"><span id="stat-cleaners" class="text-3xl font-extrabold text-slate-900">—</span></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Open Shifts</span>
+                    <div class="flex items-baseline gap-2 mt-1"><span id="stat-open-shifts" class="text-3xl font-extrabold text-amber-500">—</span></div>
+                </div>
+            </div>
+
+            <!-- Add Staff Form -->
+            <div id="add-staff-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+                <h3 class="font-bold text-slate-900 mb-3">Add New Employee</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <input id="new-staff-name"  type="text"   placeholder="Full Name *"    class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <select id="new-staff-type"               class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                        <option value="cleaner">Cleaner</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="supervisor">Supervisor</option>
+                    </select>
+                    <input id="new-staff-phone" type="text"   placeholder="Phone (optional)"   class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <input id="new-staff-email" type="email"  placeholder="Email (optional)"   class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <button onclick="createNewStaff()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Save Employee</button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="filterDirectory('all')"         id="dir-all"         class="dir-filter px-3 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold">All Staff</button>
+                        <button onclick="filterDirectory('cleaner')"     id="dir-cleaner"     class="dir-filter px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Cleaners</button>
+                        <button onclick="filterDirectory('maintenance')" id="dir-maintenance" class="dir-filter px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold">Maintenance</button>
+                    </div>
+                    <button onclick="document.getElementById('add-staff-form').classList.toggle('hidden')" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-[16px]">add</span> Add Staff
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[580px]">
+                        <thead>
+                            <tr class="bg-white text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-5 py-3">Staff Member</th>
+                                <th class="px-5 py-3">Role</th>
+                                <th class="px-5 py-3">Contact</th>
+                                <th class="px-5 py-3">Hours</th>
+                                <th class="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directory-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 6: FACILITIES & CLIENTS
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-locationsmgt" class="app-view gap-5 pb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Facilities & Clients</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Manage sites, tasks, and performance</p>
+                </div>
+                <button onclick="document.getElementById('add-site-form').classList.toggle('hidden')" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">add</span> Add Facility
+                </button>
+            </div>
+
+            <!-- Add Site Form -->
+            <div id="add-site-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+                <h3 class="font-bold text-slate-900 mb-3">Register New Facility</h3>
+                <div class="flex gap-3 flex-wrap">
+                    <input id="new-site-name"    type="text" placeholder="Facility Name *"    class="flex-1 min-w-[180px] px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <input id="new-site-address" type="text" placeholder="Full Address"        class="flex-1 min-w-[200px] px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <button onclick="createNewSite()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Register</button>
+                </div>
+            </div>
+
+            <!-- Facilities Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 bg-slate-50">
+                    <h3 class="font-bold text-slate-900 text-sm">Active Facilities Registry</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-white text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-5 py-3">Facility Name</th>
+                                <th class="px-5 py-3">Address</th>
+                                <th class="px-5 py-3">Status</th>
+                                <th class="px-5 py-3">Staff Today</th>
+                                <th class="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="locations-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 7: INVENTORY & SUPPLY
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-inventory" class="app-view gap-5 pb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Inventory & Supply</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Track stock levels across all facilities</p>
+                </div>
+                <button onclick="toggleAddInventoryForm()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">add</span> Add Item
+                </button>
+            </div>
+
+            <!-- Site Filter -->
+            <div id="inventory-site-tabs" class="flex gap-2 flex-wrap"></div>
+
+            <!-- Add Item Form -->
+            <div id="add-inventory-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+                <h3 class="font-bold text-slate-900 mb-3">Add Inventory Item</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <select id="inv-site"   class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none col-span-1"></select>
+                    <input id="inv-item"    type="text"   placeholder="Item Name *"  class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none col-span-1"/>
+                    <input id="inv-qty"     type="number" placeholder="Qty *"        class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <input id="inv-minqty"  type="number" placeholder="Min Qty *"    class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <input id="inv-unit"    type="text"   placeholder="Unit (e.g. gallons)" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    <button onclick="submitAddInventory()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Add Item</button>
+                </div>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-5 py-3">Item</th>
+                                <th class="px-5 py-3">Facility</th>
+                                <th class="px-5 py-3">Quantity</th>
+                                <th class="px-5 py-3">Min Required</th>
+                                <th class="px-5 py-3">Status</th>
+                                <th class="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 8: ALERTS & CONFIGS
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-alerts" class="app-view gap-5 pb-6">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">Alerts & Configurations</h2>
+                <p class="text-sm text-slate-500 mt-0.5">System integrations, notifications, and data management</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-4xl">
+                <!-- API Key -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-[20px]">smart_toy</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Google Gemini API</h3>
+                            <p class="text-xs text-slate-500">Powers the AI Message Center</p>
+                        </div>
+                    </div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">API Key</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="gemini-api-key" placeholder="AIzaSy…" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                        <button onclick="saveApiKey()" class="px-4 py-2 bg-primary text-white font-bold rounded-lg text-sm hover:bg-primary-dark transition-colors">Save</button>
+                    </div>
+                    <p id="api-key-status" class="text-xs text-emerald-600 mt-2 h-4"></p>
+                    <p class="text-xs text-slate-400 mt-1">Key is stored locally in your browser. Never sent to any server.</p>
+                </div>
+
+                <!-- Notification Thresholds (static UI) -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-amber-600 text-[20px]">notifications_active</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Alert Thresholds</h3>
+                            <p class="text-xs text-slate-500">When to escalate exceptions</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-700">Late alert after</span>
+                            <div class="flex items-center gap-2"><input type="number" value="15" class="w-16 px-2 py-1 border border-slate-200 rounded text-sm text-center"/><span class="text-xs text-slate-500">minutes</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-700">Critical alert after</span>
+                            <div class="flex items-center gap-2"><input type="number" value="30" class="w-16 px-2 py-1 border border-slate-200 rounded text-sm text-center"/><span class="text-xs text-slate-500">minutes</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-700">Low stock alert below</span>
+                            <div class="flex items-center gap-2"><input type="number" value="5" class="w-16 px-2 py-1 border border-slate-200 rounded text-sm text-center"/><span class="text-xs text-slate-500">units</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-red-500 text-[20px]">database</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Data Management</h3>
+                            <p class="text-xs text-slate-500">Reset or export demo data</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-4">Reset all shifts, staff, and feed events back to the original demo state. This cannot be undone.</p>
+                    <button onclick="confirmResetData()" class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold rounded-lg text-sm transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">restart_alt</span> Reset All Data
+                    </button>
+                </div>
+
+                <!-- Mobile Access Info -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-emerald-600 text-[20px]">smartphone</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Mobile Staff App</h3>
+                            <p class="text-xs text-slate-500">Field app access for your team</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">Staff clock in and manage tasks on the mobile app.</p>
+                    <div class="bg-slate-50 rounded-lg p-3 font-mono text-xs text-slate-700">
+                        <div><span class="text-slate-400">URL:</span> mobile.html</div>
+                        <div class="mt-1"><span class="text-slate-400">Demo:</span> alice / bob — password: password</div>
+                    </div>
+                    <a href="mobile.html" target="_blank" class="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">open_in_new</span> Open Mobile App
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 9: EXCEPTIONS DRILL-DOWN
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-exceptions" class="app-view gap-5 pb-6">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">Exceptions Drill-down</h2>
+                <p class="text-sm text-slate-500 mt-0.5">Root-cause analysis for late and missed shifts</p>
+            </div>
+            <!-- Summary Stats -->
+            <div id="exception-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            <!-- Exceptions Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 text-sm">Late & Problematic Shifts</h3>
+                    <span id="exception-total-label" class="text-xs font-semibold text-slate-500"></span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-white text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-5 py-3">Staff Member</th>
+                                <th class="px-5 py-3">Facility</th>
+                                <th class="px-5 py-3">Scheduled</th>
+                                <th class="px-5 py-3">Delay</th>
+                                <th class="px-5 py-3">Status</th>
+                                <th class="px-5 py-3">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exceptions-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 10: REPORTS & BILLING
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-reports" class="app-view gap-5 pb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Reports & Billing</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Automated invoices and operations summary</p>
+                </div>
+                <button class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">download</span> Export All
+                </button>
+            </div>
+
+            <div class="flex gap-5 flex-col lg:flex-row overflow-hidden">
+                <!-- Invoices Table -->
+                <div class="flex-[2] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden self-start">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="font-bold text-slate-900 text-sm">Recent Automated Invoices</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[500px]">
+                            <thead>
+                                <tr class="bg-white text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-5 py-3">Facility / Client</th>
+                                    <th class="px-5 py-3">Service</th>
+                                    <th class="px-5 py-3">Period</th>
+                                    <th class="px-5 py-3 text-right">Amount</th>
+                                    <th class="px-5 py-3 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Operations Feed Sidebar -->
+                <div class="flex-[1] min-w-[280px] bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm overflow-hidden max-h-[520px]">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3">
+                        <h3 class="font-bold text-slate-900 text-sm">Live Operations Feed</h3>
+                    </div>
+                    <div id="operations-feed-list" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2 bg-slate-50"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 11: AI MESSAGE CENTER
+        ─────────────────────────────────────────────────────────── -->
+        <div id="view-messagecenter" class="app-view h-full">
+            <div class="flex flex-col flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <header class="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-[18px]">smart_toy</span>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-900">GCS Knowledge AI</h2>
+                            <p class="text-xs text-slate-400">Powered by Google Gemini • Context-aware</p>
+                        </div>
+                    </div>
+                    <button onclick="clearChatHistoryUI()" class="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">delete_sweep</span> Clear History
+                    </button>
+                </header>
+
+                <div id="ai-chat-thread" class="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-slate-50">
+                    <!-- Populated by renderAIMessageCenter() -->
+                    <div class="flex justify-start">
+                        <div class="max-w-[70%] bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                            <p class="text-[10px] font-bold text-primary mb-1 uppercase tracking-wide">GCS Knowledge AI</p>
+                            <p class="text-sm text-slate-700 leading-relaxed">Hello! I'm your GCS operations assistant. Ask me anything — cleaning protocols, site procedures, scheduling questions, or supply management tips.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 bg-white border-t border-slate-200 flex gap-3 items-end shrink-0">
+                    <div class="flex-1 relative">
+                        <textarea id="ai-chat-input" rows="1" placeholder="Ask the AI assistant…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPromptToAI();}" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-none bg-slate-50 leading-relaxed"></textarea>
+                    </div>
+                    <button onclick="sendPromptToAI()" class="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl text-sm transition-colors flex items-center gap-2 shrink-0 shadow-sm">
+                        <span class="material-symbols-outlined text-[16px]">send</span> Send
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /main-viewport -->
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════
+     GLOBAL DRAWER (Task Manager, Staff Profile, etc.)
+═══════════════════════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="global-drawer" class="drawer">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+        <h2 id="drawer-title" class="font-bold text-slate-900 text-base">Details</h2>
+        <button onclick="closeDrawer()" class="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+    </div>
+    <div id="drawer-content" class="flex-1 overflow-y-auto p-5"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RESET CONFIRM MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="reset-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+        <div class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="material-symbols-outlined text-red-500 text-[24px]">warning</span>
+        </div>
+        <h3 class="font-bold text-slate-900 text-center text-lg mb-2">Reset All Data?</h3>
+        <p class="text-sm text-slate-500 text-center mb-6">This will restore all shifts, staff, and events to the original demo state. This action cannot be undone.</p>
+        <div class="flex gap-3">
+            <button onclick="document.getElementById('reset-modal').classList.add('hidden')" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors">Cancel</button>
+            <button onclick="window.db.clearData(); document.getElementById('reset-modal').classList.add('hidden'); window.location.reload();" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-sm transition-colors">Reset Data</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[500] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- Scheduler Drop Confirm Modal -->
+<div id="scheduler-drop-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-1">Schedule Shift</h3>
+        <p id="drop-modal-subtitle" class="text-sm text-slate-500 mb-4"></p>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Facility / Site</label>
+                <select id="drop-modal-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Start Time</label>
+                <input type="time" id="drop-modal-time" value="08:00" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                <input type="text" id="drop-modal-notes" placeholder="Optional notes…" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+            <div id="drop-conflict-warning" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-xs font-medium"></div>
+        </div>
+        <div class="flex gap-3 mt-5">
+            <button onclick="closeDropModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
+            <button onclick="confirmSchedulerDrop()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Confirm &amp; Notify</button>
+        </div>
+    </div>
+</div>
+
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

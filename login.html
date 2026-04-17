@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GCS Command Center</title>
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            document.body.innerHTML += '<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute; top:0; left:0; width:100%; font-family:sans-serif; text-align:left;"><b>JavaScript Error:</b> ' + msg + '<br>Line: ' + lineNo + '</div>';
+            return false;
+        };
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .login-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--color-background);
+            padding: 24px;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            text-align: center;
+        }
+        .login-input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border: 1px solid #E0E2E7;
+            border-radius: var(--radius-button);
+            font-size: 16px;
+            font-family: var(--font-primary);
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-button);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+        .login-btn:hover {
+            background: var(--color-primary-hover);
+        }
+        .demo-credentials {
+            margin-top: 24px;
+            padding: 16px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--color-muted);
+            text-align: left;
+        }
+        #login-error {
+            color: var(--color-error);
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="card login-card">
+            <div style="background: var(--color-primary); width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <h2 style="margin-bottom: 8px;">GCS Platform</h2>
+            <div style="color: var(--color-muted); margin-bottom: 32px;">Command Center & Field Ops</div>
+
+            <div id="login-error">Invalid username or password</div>
+
+            <form id="login-form">
+                <input type="text" id="username" class="login-input" placeholder="Username" required>
+                <input type="password" id="password" class="login-input" placeholder="Password" required>
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+
+            <div class="demo-credentials">
+                <strong>Demo Accounts:</strong><br>
+                Manager (Desktop View): <code>manager</code> / <code>password</code><br>
+                Staff (Mobile View): <code>alice</code> / <code>password</code>
+            </div>
+        </div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="login.js"></script>
+</body>
+</html>
