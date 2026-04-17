@@ -576,8 +576,17 @@ function renderShiftManagement() {
             return t >= start && t <= end;
         });
     }
+
+    // Type filter
+    let filtered = all;
+    if (window.currentShiftTypeFilter) {
+        filtered = all.filter(s => s.type === window.currentShiftTypeFilter);
+    }
+
     // Status filter
-    const filtered = currentShiftFilter === 'all' ? all : all.filter(s => s.status === currentShiftFilter);
+    if (currentShiftFilter !== 'all') {
+        filtered = filtered.filter(s => s.status === currentShiftFilter);
+    }
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400 italic">No shifts match this filter.</td></tr>`;
@@ -587,16 +596,33 @@ function renderShiftManagement() {
     tbody.innerHTML = filtered.map(s => {
         const time = new Date(s.targetTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         const canCancel = s.status !== 'completed';
-        return `<tr class="hover:bg-slate-50 transition-colors cursor-pointer group" onclick="openEditShiftDrawer('${escapeHTML(s.id)}')">
-            <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">${escapeHTML(s.staff ? s.staff.avatar : '?')}</div>
-                    <span class="font-semibold text-slate-900 group-hover:text-primary transition-colors">${escapeHTML(s.staff ? s.staff.name : s.staffId)}</span>
+        const isTask = s.type === 'task';
+
+        // Handle multi-staff display
+        const staffList = s.staffList || [s.staff];
+        const staffDisplay = staffList.length > 1
+            ? `<div class="flex items-center gap-2">
+                <div class="flex -space-x-2">
+                  ${staffList.slice(0, 3).map((st, i) => `<div title="${escapeHTML(st?.name || '')}" class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs border border-white">${escapeHTML(st?.avatar || '?')}</div>`).join('')}
                 </div>
-            </td>
+                <span class="text-xs font-semibold text-slate-600">${staffList.length} staff</span>
+              </div>`
+            : `<div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">${escapeHTML(s.staff ? s.staff.avatar : '?')}</div>
+                <span class="font-semibold text-slate-900 group-hover:text-primary transition-colors">${escapeHTML(s.staff ? s.staff.name : s.staffId)}</span>
+              </div>`;
+
+        const statusDisplay = isTask
+            ? '<span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">TASK</span>'
+            : statusBadge(s.status);
+
+        const rowClass = isTask ? 'bg-orange-50' : 'hover:bg-slate-50';
+
+        return `<tr class="${rowClass} transition-colors cursor-pointer group" onclick="openEditShiftDrawer('${escapeHTML(s.id)}')">
+            <td class="px-5 py-3">${staffDisplay}</td>
             <td class="px-5 py-3 text-slate-600 text-sm">${escapeHTML(s.site ? s.site.name : s.siteId)}</td>
             <td class="px-5 py-3 text-slate-600 text-xs">${time}</td>
-            <td class="px-5 py-3">${statusBadge(s.status)}</td>
+            <td class="px-5 py-3">${statusDisplay}</td>
             <td class="px-5 py-3 text-slate-500 text-xs max-w-[160px] truncate">${escapeHTML(s.notes || '—')}</td>
             <td class="px-5 py-3 text-right" onclick="event.stopPropagation()">
                 <div class="flex items-center justify-end gap-1">
@@ -608,51 +634,186 @@ function renderShiftManagement() {
     }).join('');
 }
 
+// ─── Shift Form Helpers ──────────────────────────────────────────────────
+
+window.selectShiftType = function (type) {
+    document.querySelectorAll('.shift-type-btn').forEach(b => {
+        const isSelected = b.getAttribute('data-type') === type;
+        b.className = isSelected
+            ? 'shift-type-btn px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold'
+            : 'shift-type-btn px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold';
+    });
+
+    document.getElementById('shift-form-fields').style.display = type === 'shift' ? 'block' : 'none';
+    document.getElementById('task-form-fields').style.display = type === 'task' ? 'block' : 'none';
+
+    window.currentShiftType = type;
+};
+
+window.toggleRecurringOptions = function () {
+    const recurring = document.getElementById('shift-recurring').checked;
+    document.getElementById('recurring-options').style.display = recurring ? 'grid' : 'none';
+};
+
+window.toggleRecurringEndOption = function () {
+    const endType = document.getElementById('recurring-end-type').value;
+    const field = document.getElementById('recurring-end-field');
+    if (endType === 'date') {
+        field.innerHTML = '<label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">End Date</label><input type="date" id="shift-end-date" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>';
+    } else {
+        field.innerHTML = '<label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Number of Shifts</label><input type="number" id="shift-end-occurrences" min="1" value="10" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>';
+    }
+};
+
+window.getSelectedStaffIds = function () {
+    const staffSelect = document.getElementById('shift-staff');
+    if (!staffSelect) return [];
+    const selected = Array.from(staffSelect.selectedOptions || []).map(o => o.value);
+    return selected.length > 0 ? selected : [];
+};
+
 window.filterShifts = function (filter) {
-    currentShiftFilter = filter;
-    document.querySelectorAll('.shift-filter-btn').forEach(b => {
-        b.className = b.id === 'sft-' + filter
+    // Check if this is a type filter (all, shift, task) or status filter (active, upcoming, late, completed)
+    if (['all', 'shift', 'task'].includes(filter)) {
+        currentShiftTypeFilter = filter === 'all' ? null : filter;
+        document.getElementById('sft-all').className = filter === 'all'
             ? 'shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold'
             : 'shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold';
-    });
+        document.getElementById('sft-shift').className = filter === 'shift'
+            ? 'shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold'
+            : 'shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold';
+        document.getElementById('sft-task').className = filter === 'task'
+            ? 'shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold'
+            : 'shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold';
+    } else {
+        currentShiftFilter = filter;
+        ['active', 'upcoming', 'late', 'completed'].forEach(status => {
+            const btn = document.getElementById('sft-' + status);
+            if (btn) {
+                btn.className = status === filter
+                    ? 'shift-filter-btn px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold'
+                    : 'shift-filter-btn px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-xs font-bold';
+            }
+        });
+    }
     renderShiftManagement();
 };
 
 window.toggleCreateShiftForm = function () {
-    document.getElementById('create-shift-form').classList.toggle('hidden');
-    // Set default time to now + 30min
-    const dt = document.getElementById('shift-time');
-    if (dt && !dt.value) {
-        const d = new Date(Date.now() + 30 * 60000);
-        dt.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const form = document.getElementById('create-shift-form');
+    form.classList.toggle('hidden');
+
+    if (!form.classList.contains('hidden')) {
+        // Initialize form
+        window.currentShiftType = 'shift';
+        selectShiftType('shift');
+
+        // Set default time to now + 30min
+        const dt = document.getElementById('shift-time');
+        const taskDt = document.getElementById('task-time');
+        if ((dt || taskDt) && (!dt?.value || !taskDt?.value)) {
+            const d = new Date(Date.now() + 30 * 60000);
+            const timeStr = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            if (dt) dt.value = timeStr;
+            if (taskDt) taskDt.value = timeStr;
+        }
+
+        // Populate dropdowns
+        const data = window.db.getDashboardData();
+        populateShiftFormDropdowns(data.staffList, data.sites);
     }
 };
 
 function populateShiftFormDropdowns(staffList, sites) {
+    // Populate shift form (multi-select)
     const staffSel = document.getElementById('shift-staff');
-    const siteSel  = document.getElementById('shift-site');
     if (staffSel && staffSel.options.length < 2) {
-        staffSel.innerHTML = '<option value="">Select Staff…</option>' +
-            staffList.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)} (${escapeHTML(s.type)})</option>`).join('');
+        staffSel.innerHTML = staffList.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)} (${escapeHTML(s.type)})</option>`).join('');
     }
+
+    // Populate shift sites
+    const siteSel = document.getElementById('shift-site');
     if (siteSel && siteSel.options.length < 2) {
         siteSel.innerHTML = '<option value="">Select Site…</option>' +
+            sites.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
+    }
+
+    // Populate task form (single-select)
+    const taskStaffSel = document.getElementById('task-staff');
+    if (taskStaffSel && taskStaffSel.options.length < 2) {
+        taskStaffSel.innerHTML = '<option value="">Select Staff…</option>' +
+            staffList.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)} (${escapeHTML(s.type)})</option>`).join('');
+    }
+
+    // Populate task sites
+    const taskSiteSel = document.getElementById('task-site');
+    if (taskSiteSel && taskSiteSel.options.length < 2) {
+        taskSiteSel.innerHTML = '<option value="">Select Site…</option>' +
             sites.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
     }
 }
 
 window.submitCreateShift = function () {
-    const staffId = document.getElementById('shift-staff').value;
-    const siteId  = document.getElementById('shift-site').value;
-    const time    = document.getElementById('shift-time').value;
-    const notes   = document.getElementById('shift-notes').value;
-    if (!staffId || !siteId || !time) { alert('Please fill in Staff, Site, and Time.'); return; }
-    window.db.createShift(staffId, siteId, new Date(time).toISOString(), notes);
+    const shiftType = window.currentShiftType || 'shift';
+
+    if (shiftType === 'shift') {
+        const staffIds = getSelectedStaffIds();
+        const siteId  = document.getElementById('shift-site').value;
+        const time    = document.getElementById('shift-time').value;
+        const notes   = document.getElementById('shift-notes').value;
+        const isRecurring = document.getElementById('shift-recurring')?.checked || false;
+
+        if (staffIds.length === 0 || !siteId || !time) {
+            showToast('Please select Staff, Site, and Time.', 'error');
+            return;
+        }
+
+        if (isRecurring) {
+            const pattern = document.getElementById('recurring-end-type').value;
+            const patternType = document.getElementById('shift-pattern').value;
+            const recurringPattern = {
+                type: patternType,
+                endDate: pattern === 'date' ? document.getElementById('shift-end-date').value : null,
+                occurrences: pattern === 'count' ? parseInt(document.getElementById('shift-end-occurrences')?.value || 10) : null
+            };
+            window.db.createRecurringShift(staffIds, siteId, new Date(time).toISOString(), recurringPattern, null, notes);
+            showToast(`Recurring shift created for ${staffIds.length} staff member(s)!`, 'success');
+        } else {
+            staffIds.forEach(staffId => {
+                window.db.createShift(staffId, siteId, new Date(time).toISOString(), notes, 'shift');
+            });
+            showToast(`Shift created for ${staffIds.length} staff member(s)!`, 'success');
+        }
+    } else {
+        // Task creation
+        const staffId = document.getElementById('task-staff').value;
+        const siteId  = document.getElementById('task-site').value;
+        const time    = document.getElementById('task-time').value;
+        const notes   = document.getElementById('task-notes').value;
+
+        if (!staffId || !siteId || !time) {
+            showToast('Please fill in Staff, Site, and Time.', 'error');
+            return;
+        }
+
+        window.db.createShift(staffId, siteId, new Date(time).toISOString(), notes, 'task');
+        showToast('Task created and staff notified!', 'success');
+    }
+
+    // Reset form
     document.getElementById('create-shift-form').classList.add('hidden');
     document.getElementById('shift-staff').value = '';
     document.getElementById('shift-site').value  = '';
     document.getElementById('shift-time').value  = '';
     document.getElementById('shift-notes').value = '';
+    document.getElementById('task-staff').value = '';
+    document.getElementById('task-site').value = '';
+    document.getElementById('task-time').value = '';
+    document.getElementById('task-notes').value = '';
+    document.getElementById('shift-recurring').checked = false;
+    document.getElementById('recurring-options').style.display = 'none';
+
+    renderShiftManagement();
 };
 
 window.cancelShiftItem = function (shiftId) {
