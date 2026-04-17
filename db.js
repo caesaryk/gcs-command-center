@@ -41,7 +41,10 @@ class Database {
         try {
             const raw = localStorage.getItem(DB_KEY);
             const data = raw ? JSON.parse(raw) : (this.memoryStore || null);
-            if (data) this.migrateShiftSchema(data);
+            if (data) {
+                this.migrateShiftSchema(data);
+                this.migrateStaffRoles(data);
+            }
             return data;
         } catch (err) {
             return this.memoryStore || null;
@@ -58,6 +61,20 @@ class Database {
                 if (!shift.type) shift.type = 'shift';
                 if (!shift.createdAt) shift.createdAt = new Date().toISOString();
                 if (shift.isRecurring === undefined) shift.isRecurring = false;
+            });
+        }
+    }
+
+    migrateStaffRoles(data) {
+        // Convert old single-role staff to multi-role format
+        if (data.staff) {
+            data.staff.forEach(staff => {
+                if (!staff.roles && staff.type) {
+                    staff.roles = [staff.type];
+                }
+                if (!staff.roles) staff.roles = ['cleaner'];
+                if (staff.isActive === undefined) staff.isActive = true;
+                if (!staff.startDate) staff.startDate = new Date().toISOString();
             });
         }
     }
@@ -99,14 +116,14 @@ class Database {
                 { id: 'U3', username: 'bob',     password: 'password', role: 'staff',   staffId: 'S2' }
             ],
             staff: [
-                { id: 'S1', name: 'Alice Walker',    avatar: 'AW', hours: 32, type: 'cleaner',     phone: '555-0101', email: 'alice@gcs.com' },
-                { id: 'S2', name: 'Bob Smith',       avatar: 'BS', hours: 40, type: 'maintenance', phone: '555-0102', email: 'bob@gcs.com' },
-                { id: 'S3', name: 'Charlie Davis',   avatar: 'CD', hours: 28, type: 'cleaner',     phone: '555-0103', email: 'charlie@gcs.com' },
-                { id: 'S4', name: 'Diana Prince',    avatar: 'DP', hours: 38, type: 'cleaner',     phone: '555-0104', email: 'diana@gcs.com' },
-                { id: 'S5', name: 'Evan Wright',     avatar: 'EW', hours: 20, type: 'maintenance', phone: '555-0105', email: 'evan@gcs.com' },
-                { id: 'S6', name: 'Fiona Gallagher', avatar: 'FG', hours: 42, type: 'cleaner',     phone: '555-0106', email: 'fiona@gcs.com' },
-                { id: 'S7', name: 'George Miller',   avatar: 'GM', hours: 15, type: 'cleaner',     phone: '555-0107', email: 'george@gcs.com' },
-                { id: 'S8', name: 'Hannah Lee',      avatar: 'HL', hours: 35, type: 'maintenance', phone: '555-0108', email: 'hannah@gcs.com' }
+                { id: 'S1', name: 'Alice Walker',    avatar: 'AW', hours: 32, type: 'cleaner',     roles: ['cleaner'], phone: '555-0101', email: 'alice@gcs.com', isActive: true, startDate: new Date(2024, 0, 15).toISOString(), notes: '' },
+                { id: 'S2', name: 'Bob Smith',       avatar: 'BS', hours: 40, type: 'maintenance', roles: ['maintenance'], phone: '555-0102', email: 'bob@gcs.com', isActive: true, startDate: new Date(2023, 6, 20).toISOString(), notes: '' },
+                { id: 'S3', name: 'Charlie Davis',   avatar: 'CD', hours: 28, type: 'cleaner',     roles: ['cleaner'], phone: '555-0103', email: 'charlie@gcs.com', isActive: true, startDate: new Date(2024, 2, 10).toISOString(), notes: '' },
+                { id: 'S4', name: 'Diana Prince',    avatar: 'DP', hours: 38, type: 'cleaner',     roles: ['cleaner'], phone: '555-0104', email: 'diana@gcs.com', isActive: true, startDate: new Date(2023, 11, 5).toISOString(), notes: '' },
+                { id: 'S5', name: 'Evan Wright',     avatar: 'EW', hours: 20, type: 'maintenance', roles: ['maintenance'], phone: '555-0105', email: 'evan@gcs.com', isActive: true, startDate: new Date(2024, 1, 1).toISOString(), notes: '' },
+                { id: 'S6', name: 'Fiona Gallagher', avatar: 'FG', hours: 42, type: 'cleaner',     roles: ['cleaner'], phone: '555-0106', email: 'fiona@gcs.com', isActive: true, startDate: new Date(2023, 5, 12).toISOString(), notes: '' },
+                { id: 'S7', name: 'George Miller',   avatar: 'GM', hours: 15, type: 'cleaner',     roles: ['cleaner'], phone: '555-0107', email: 'george@gcs.com', isActive: true, startDate: new Date(2024, 3, 1).toISOString(), notes: '' },
+                { id: 'S8', name: 'Hannah Lee',      avatar: 'HL', hours: 35, type: 'maintenance', roles: ['maintenance'], phone: '555-0108', email: 'hannah@gcs.com', isActive: true, startDate: new Date(2023, 8, 18).toISOString(), notes: '' }
             ],
             sites: [
                 { id: 'L1', name: 'Site 44 (Downtown)',     address: '44 Wall Street, New York, NY 10005',        lat: 40.7128, lng: -74.0060 },
@@ -283,13 +300,17 @@ class Database {
 
     addStaff(name, type, phone, email) {
         const newStaff = {
-            id:     'S' + Date.now(),
+            id:        'S' + Date.now(),
             name,
-            avatar: name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-            hours:  0,
+            avatar:    name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+            hours:     0,
             type,
-            phone:  phone || '',
-            email:  email || ''
+            roles:     [type],
+            phone:     phone || '',
+            email:     email || '',
+            isActive:  true,
+            startDate: new Date().toISOString(),
+            notes:     ''
         };
         this.data.staff.push(newStaff);
         this.addFeedEvent('info', `New employee ${name} added as ${type}.`);
@@ -299,8 +320,55 @@ class Database {
 
     deleteStaff(staffId) {
         this.data.staff  = this.data.staff.filter(s => s.id !== staffId);
-        this.data.shifts = this.data.shifts.filter(s => s.staffId !== staffId);
+        this.data.shifts = this.data.shifts.filter(s => {
+            const staffIds = s.staffIds || [s.staffId];
+            return !staffIds.includes(staffId);
+        });
         this.saveData();
+    }
+
+    updateStaff(staffId, updates) {
+        const staff = this.data.staff.find(s => s.id === staffId);
+        if (staff) {
+            Object.assign(staff, updates);
+            this.addFeedEvent('info', `${staff.name} information updated.`);
+            this.saveData();
+        }
+    }
+
+    addRoleToStaff(staffId, role) {
+        const staff = this.data.staff.find(s => s.id === staffId);
+        if (staff && !staff.roles.includes(role)) {
+            staff.roles.push(role);
+            this.addFeedEvent('info', `${staff.name} assigned role: ${role}.`);
+            this.saveData();
+        }
+    }
+
+    removeRoleFromStaff(staffId, role) {
+        const staff = this.data.staff.find(s => s.id === staffId);
+        if (staff) {
+            staff.roles = staff.roles.filter(r => r !== role);
+            if (staff.roles.length === 0) staff.roles = ['cleaner'];
+            this.addFeedEvent('info', `${staff.name} role removed: ${role}.`);
+            this.saveData();
+        }
+    }
+
+    getStaffAssignments(staffId) {
+        // Returns all current and upcoming shifts assigned to this staff
+        const now = new Date();
+        return this.data.shifts.filter(shift => {
+            const staffIds = shift.staffIds || [shift.staffId];
+            if (!staffIds.includes(staffId)) return false;
+            if (shift.isRecurringTemplate) return false;
+            const shiftDate = new Date(shift.targetTime);
+            return shiftDate >= now && (shift.status === 'active' || shift.status === 'upcoming');
+        }).sort((a, b) => new Date(a.targetTime) - new Date(b.targetTime));
+    }
+
+    getStaffByRole(role) {
+        return this.data.staff.filter(staff => staff.roles && staff.roles.includes(role));
     }
 
     // ─── Sites CRUD ──────────────────────────────────────────────────────────────

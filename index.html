@@ -947,6 +947,93 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════
+     EDIT STAFF MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="edit-staff-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-500px w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-1">Edit Staff Member</h3>
+        <p class="text-sm text-slate-500 mb-4" id="edit-modal-subtitle"></p>
+
+        <div class="space-y-4">
+            <!-- Staff ID (read-only) -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Staff ID</label>
+                <input type="text" id="edit-staff-id" readonly
+                       class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600"/>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Full Name *</label>
+                <input type="text" id="edit-staff-name" placeholder="Full Name"
+                       class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+
+            <!-- Roles (Multi-select with checkboxes) -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Roles *</label>
+                <div class="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="role-checkbox" value="cleaner"/>
+                        <span class="text-sm font-medium text-slate-700">Cleaner</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="role-checkbox" value="maintenance"/>
+                        <span class="text-sm font-medium text-slate-700">Maintenance</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="role-checkbox" value="supervisor"/>
+                        <span class="text-sm font-medium text-slate-700">Supervisor</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Phone -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone</label>
+                <input type="text" id="edit-staff-phone" placeholder="555-0000"
+                       class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Email</label>
+                <input type="email" id="edit-staff-email" placeholder="email@example.com"
+                       class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+
+            <!-- Start Date -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Start Date</label>
+                <input type="date" id="edit-staff-startdate"
+                       class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+                <textarea id="edit-staff-notes" placeholder="Internal notes about this staff member..."
+                          rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></textarea>
+            </div>
+
+            <!-- Active/Inactive Toggle -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="edit-staff-active" class="rounded"/>
+                    <span class="text-sm font-medium text-slate-700">Active Staff Member</span>
+                </label>
+                <p class="text-xs text-slate-500 mt-1">Uncheck to mark as inactive/removed</p>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeEditStaffModal()" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm">Cancel</button>
+            <button onclick="saveEditedStaff()" class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm shadow-sm">Save Changes</button>
+        </div>
+    </div>
+</div>
+
 <script src="db.js"></script>
 <script src="app.js"></script>
 </body>

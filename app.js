@@ -1410,7 +1410,12 @@ function renderStaffDirectory(staffList, shifts) {
     if (!tbody) return;
     const maxHours = Math.max(1, ...staffList.map(s => s.hours));
     const query    = (document.getElementById('global-search') || {}).value || '';
-    let filtered   = currentDirFilter === 'all' ? staffList : staffList.filter(s => s.type === currentDirFilter);
+    let filtered   = currentDirFilter === 'all'
+        ? staffList.filter(s => s.isActive !== false)
+        : staffList.filter(s => {
+            const roles = s.roles || [s.type];
+            return s.isActive !== false && roles.includes(currentDirFilter);
+        });
     if (query) filtered = filtered.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
 
     if (filtered.length === 0) {
@@ -1419,11 +1424,14 @@ function renderStaffDirectory(staffList, shifts) {
     }
 
     tbody.innerHTML = filtered.map(s => {
-        const activeShift = shifts.find(sh => sh.staffId === s.id && sh.status === 'active');
+        const staffIds = shifts.length > 0 ? Array.from(new Set(shifts.filter(sh => sh.status === 'active').map(sh => sh.staffIds || [sh.staffId]).flat())) : [];
+        const activeShift = staffIds.includes(s.id);
         const statusHTML  = activeShift
             ? `<span class="flex items-center gap-1 text-emerald-600 font-semibold text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>On Site</span>`
             : `<span class="text-slate-400 text-xs">Off Shift</span>`;
         const pct = Math.round((s.hours / maxHours) * 100);
+        const roles = s.roles || [s.type];
+        const rolesDisplay = roles.join(' / ');
         return `<tr class="hover:bg-slate-50 transition-colors group">
             <td class="px-5 py-3">
                 <div class="flex items-center gap-3">
@@ -1435,7 +1443,7 @@ function renderStaffDirectory(staffList, shifts) {
                 </div>
             </td>
             <td class="px-5 py-3">
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">${escapeHTML(s.type)}</span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">${escapeHTML(rolesDisplay)}</span>
                 <div class="mt-0.5">${statusHTML}</div>
             </td>
             <td class="px-5 py-3 text-xs text-slate-500">
@@ -1490,37 +1498,186 @@ window.viewStaffProfile = function (staffId) {
     const data  = window.db.getDashboardData();
     const staff = data.staffList.find(s => s.id === staffId);
     if (!staff) return;
-    const staffShifts = data.shifts.filter(s => s.staffId === staffId);
-    const activeShift = staffShifts.find(s => s.status === 'active');
 
-    const shiftsHTML = staffShifts.length
-        ? staffShifts.slice(0, 6).map(s => `
-            <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 text-sm">
-                <div>
-                    <span class="font-medium text-slate-800">${escapeHTML(s.site ? s.site.name : s.siteId)}</span>
-                    <div class="text-xs text-slate-400">${new Date(s.targetTime).toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'})}</div>
+    // Get current and upcoming shifts
+    const allShifts = data.shifts.filter(s => {
+        const staffIds = s.staffIds || [s.staffId];
+        return staffIds.includes(staffId);
+    });
+    const currentShifts = window.getStaffCurrentShifts(staffId);
+    const activeShift = allShifts.find(s => s.status === 'active');
+
+    // Get roles display
+    const roles = staff.roles || [staff.type] || ['cleaner'];
+    const rolesDisplay = roles.join(' • ');
+
+    // Get status
+    const statusDisplay = staff.isActive !== false ? '<span class="text-xs font-bold text-emerald-600 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Active</span>' : '<span class="text-xs font-bold text-slate-400 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Inactive</span>';
+
+    // Assigned shifts HTML
+    const assignedShiftsHTML = currentShifts.length
+        ? currentShifts.map(s => {
+            const site = data.sites.find(l => l.id === s.siteId);
+            const time = new Date(s.targetTime).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+            const statusColor = s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : s.status === 'upcoming' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700';
+            return `<div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="font-semibold text-sm text-slate-900">${escapeHTML(site?.name || 'Unknown Site')}</div>
+                    <span class="text-xs font-bold ${statusColor} px-2 py-1 rounded">${s.status}</span>
                 </div>
-                ${statusBadge(s.status)}
-            </div>`).join('')
-        : '<p class="text-sm text-slate-400 italic py-2">No shifts assigned.</p>';
+                <div class="text-xs text-slate-600">
+                    <div>📅 ${time}</div>
+                </div>
+            </div>`;
+        }).join('')
+        : '<p class="text-sm text-slate-400 italic">No upcoming shifts assigned.</p>';
+
+    // Shift history HTML (most recent 6)
+    const shiftHistory = allShifts.filter(s => s.status === 'completed').sort((a, b) => new Date(b.targetTime) - new Date(a.targetTime)).slice(0, 6);
+    const shiftHistoryHTML = shiftHistory.length
+        ? shiftHistory.map(s => {
+            const site = data.sites.find(l => l.id === s.siteId);
+            const date = new Date(s.targetTime).toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'});
+            return `<div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 text-sm">
+                <div>
+                    <span class="font-medium text-slate-800">${escapeHTML(site?.name || s.siteId)}</span>
+                    <div class="text-xs text-slate-400">${date}</div>
+                </div>
+                <span class="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded">Completed</span>
+            </div>`;
+        }).join('')
+        : '<p class="text-sm text-slate-400 italic py-2">No completed shifts.</p>';
+
+    // Start date display
+    const startDateDisplay = staff.startDate ? new Date(staff.startDate).toLocaleDateString() : 'Not set';
+
+    // Notes section
+    const notesHTML = staff.notes ? `<div style="margin-top:16px;"><h4 class="text-sm font-bold text-slate-700 mb-2">Notes</h4><div class="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">${escapeHTML(staff.notes)}</div></div>` : '';
+
+    window.currentEditingStaffId = staffId;
 
     openDrawer(`${staff.name}`, `
-        <div class="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl">
-            <div class="w-14 h-14 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl">${escapeHTML(staff.avatar)}</div>
-            <div>
-                <h3 class="font-black text-slate-900 text-lg">${escapeHTML(staff.name)}</h3>
-                <p class="text-sm text-slate-500 capitalize">${escapeHTML(staff.type)}</p>
-                ${activeShift ? '<span class="text-xs font-bold text-emerald-600 flex items-center gap-1 mt-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Currently on site</span>' : ''}
+        <div class="flex items-center justify-between mb-6 pb-6 border-b border-slate-200">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl">${escapeHTML(staff.avatar)}</div>
+                <div>
+                    <h3 class="font-black text-slate-900 text-lg">${escapeHTML(staff.name)}</h3>
+                    <div class="text-sm text-slate-500">${rolesDisplay}</div>
+                    <div style="margin-top:4px;">${statusDisplay}</div>
+                </div>
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-3 mb-6 text-sm">
-            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Phone</p><p class="font-semibold mt-0.5">${escapeHTML(staff.phone || 'Not set')}</p></div>
-            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Email</p><p class="font-semibold mt-0.5 truncate">${escapeHTML(staff.email || 'Not set')}</p></div>
-            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Hours</p><p class="font-semibold mt-0.5">${staff.hours}h this week</p></div>
-            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Staff ID</p><p class="font-semibold mt-0.5">${escapeHTML(staff.id)}</p></div>
+
+        <div style="margin-bottom:20px;">
+            <button id="btn-edit-staff" onclick="openEditStaffModal()" class="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm transition-colors">
+                ✎ Edit Staff Member
+            </button>
         </div>
-        <h4 class="font-bold text-slate-800 mb-2 text-sm">Shift History</h4>
-        ${shiftsHTML}`);
+
+        <div class="grid grid-cols-2 gap-3 mb-6 text-sm">
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Staff ID</p><p class="font-semibold mt-0.5 font-mono">${escapeHTML(staff.id)}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Status</p><p class="font-semibold mt-0.5">${staff.isActive !== false ? 'Active' : 'Inactive'}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Phone</p><p class="font-semibold mt-0.5">${escapeHTML(staff.phone || '—')}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Email</p><p class="font-semibold mt-0.5 truncate">${escapeHTML(staff.email || '—')}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Started</p><p class="font-semibold mt-0.5">${startDateDisplay}</p></div>
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Hours This Week</p><p class="font-semibold mt-0.5">${staff.hours}h</p></div>
+        </div>
+
+        ${notesHTML}
+
+        <div style="margin-top:24px;">
+            <h4 class="text-sm font-bold text-slate-700 mb-3">📅 Current & Upcoming Shifts</h4>
+            <div class="space-y-2">
+                ${assignedShiftsHTML}
+            </div>
+        </div>
+
+        <div style="margin-top:24px;">
+            <h4 class="text-sm font-bold text-slate-700 mb-3">📋 Shift History</h4>
+            <div class="space-y-2">
+                ${shiftHistoryHTML}
+            </div>
+        </div>`);
+};
+
+window.getStaffCurrentShifts = function(staffId) {
+    const data = window.db.getDashboardData();
+    const now = new Date();
+    return data.shifts.filter(shift => {
+        const staffIds = shift.staffIds || [shift.staffId];
+        if (!staffIds.includes(staffId)) return false;
+        if (shift.isRecurringTemplate) return false;
+        const shiftDate = new Date(shift.targetTime);
+        return shiftDate >= now && (shift.status === 'active' || shift.status === 'upcoming');
+    }).sort((a, b) => new Date(a.targetTime) - new Date(b.targetTime));
+};
+
+window.openEditStaffModal = function () {
+    const staffId = window.currentEditingStaffId;
+    const staff = window.db.data.staff.find(s => s.id === staffId);
+    if (!staff) return;
+
+    document.getElementById('edit-modal-subtitle').textContent = `ID: ${staff.id} • ${(staff.roles || [staff.type]).join(', ')}`;
+
+    // Populate form
+    document.getElementById('edit-staff-id').value = staff.id;
+    document.getElementById('edit-staff-name').value = staff.name;
+    document.getElementById('edit-staff-phone').value = staff.phone || '';
+    document.getElementById('edit-staff-email').value = staff.email || '';
+    document.getElementById('edit-staff-startdate').value = staff.startDate ? staff.startDate.split('T')[0] : '';
+    document.getElementById('edit-staff-notes').value = staff.notes || '';
+    document.getElementById('edit-staff-active').checked = staff.isActive !== false;
+
+    // Set role checkboxes
+    const roles = staff.roles || [staff.type];
+    document.querySelectorAll('.role-checkbox').forEach(cb => {
+        cb.checked = roles.includes(cb.value);
+    });
+
+    document.getElementById('edit-staff-modal').classList.remove('hidden');
+    closeDrawer();
+};
+
+window.closeEditStaffModal = function () {
+    document.getElementById('edit-staff-modal').classList.add('hidden');
+};
+
+window.saveEditedStaff = function () {
+    const staffId = window.currentEditingStaffId;
+    const name = document.getElementById('edit-staff-name').value.trim();
+
+    if (!name) {
+        showToast('Name is required', 'error');
+        return;
+    }
+
+    // Get selected roles
+    const roles = Array.from(document.querySelectorAll('.role-checkbox:checked'))
+        .map(cb => cb.value);
+
+    if (roles.length === 0) {
+        showToast('Select at least one role', 'error');
+        return;
+    }
+
+    const updates = {
+        name,
+        roles,
+        phone: document.getElementById('edit-staff-phone').value.trim() || '',
+        email: document.getElementById('edit-staff-email').value.trim() || '',
+        startDate: document.getElementById('edit-staff-startdate').value ? document.getElementById('edit-staff-startdate').value + 'T00:00:00.000Z' : undefined,
+        notes: document.getElementById('edit-staff-notes').value.trim() || '',
+        isActive: document.getElementById('edit-staff-active').checked
+    };
+
+    window.db.updateStaff(staffId, updates);
+    document.getElementById('edit-staff-modal').classList.add('hidden');
+
+    // Re-render staff directory
+    const data = window.db.getDashboardData();
+    renderStaffDirectory(data.staffList, data.shifts);
+
+    showToast(`${name} updated successfully`, 'success');
 };
 
 // ─── Locations ────────────────────────────────────────────────────────────────
