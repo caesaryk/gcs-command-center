@@ -1000,7 +1000,10 @@ function renderScheduler() {
 
         // Apply filters
         if (schedulerFilterSite  !== 'all') dayShifts = dayShifts.filter(s => s.siteId  === schedulerFilterSite);
-        if (schedulerFilterStaff !== 'all') dayShifts = dayShifts.filter(s => s.staffId === schedulerFilterStaff);
+        if (schedulerFilterStaff !== 'all') dayShifts = dayShifts.filter(s => {
+            const staffIds = s.staffIds || [s.staffId];
+            return staffIds.includes(schedulerFilterStaff);
+        });
 
         const cell = document.createElement('div');
         cell.className = `bg-white p-2 border-b border-r border-slate-200 flex flex-col gap-1.5 min-h-[120px] transition-colors`;
@@ -2848,20 +2851,6 @@ window.renderScheduleListView = function (shifts, data) {
     document.getElementById('schedule-month-view').style.display = 'none';
     document.getElementById('schedule-list-view').style.display = 'block';
 };
-
-function getWeekDates(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    const sunday = new Date(d.setDate(diff));
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-        const next = new Date(sunday);
-        next.setDate(next.getDate() + i);
-        week.push(next);
-    }
-    return week;
-}
 
 // ─── Inventory & Supply Request Management ─────────────────────────────────────
 
