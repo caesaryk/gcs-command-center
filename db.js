@@ -150,7 +150,13 @@ class Database {
                         { itemName: 'Hand Soap', defaultQty: 4, minQty: 2, unit: 'liters' },
                         { itemName: 'Trash Bags (65gal)', defaultQty: 50, minQty: 25, unit: 'bags' },
                         { itemName: 'Disinfectant Spray', defaultQty: 12, minQty: 6, unit: 'cans' },
-                        { itemName: 'Latex Gloves', defaultQty: 10, minQty: 5, unit: 'boxes' }
+                        { itemName: 'Latex Gloves', defaultQty: 10, minQty: 5, unit: 'boxes' },
+                        { itemName: 'Glass Cleaner', defaultQty: 6, minQty: 3, unit: 'bottles' },
+                        { itemName: 'Toilet Paper', defaultQty: 48, minQty: 24, unit: 'rolls' },
+                        { itemName: 'Cleaning Cloths', defaultQty: 12, minQty: 6, unit: 'packs' },
+                        { itemName: 'Deodorizer', defaultQty: 8, minQty: 4, unit: 'cans' },
+                        { itemName: 'Floor Wax', defaultQty: 3, minQty: 1, unit: 'gallons' },
+                        { itemName: 'Mop Heads', defaultQty: 6, minQty: 3, unit: 'units' }
                     ]
                 },
                 {
@@ -163,7 +169,13 @@ class Database {
                         { itemName: 'Hand Sanitizer', defaultQty: 6, minQty: 3, unit: 'liters' },
                         { itemName: 'Biohazard Bags', defaultQty: 30, minQty: 15, unit: 'bags' },
                         { itemName: 'Surface Wipes (Medical)', defaultQty: 12, minQty: 6, unit: 'canisters' },
-                        { itemName: 'N95 Masks', defaultQty: 20, minQty: 10, unit: 'boxes' }
+                        { itemName: 'N95 Masks', defaultQty: 20, minQty: 10, unit: 'boxes' },
+                        { itemName: 'Sterile Gauze Pads', defaultQty: 100, minQty: 50, unit: 'packs' },
+                        { itemName: 'Alcohol Prep Pads', defaultQty: 200, minQty: 100, unit: 'pads' },
+                        { itemName: 'Medical Tape', defaultQty: 12, minQty: 6, unit: 'rolls' },
+                        { itemName: 'Gowns (Protective)', defaultQty: 50, minQty: 25, unit: 'units' },
+                        { itemName: 'Sharps Container', defaultQty: 5, minQty: 2, unit: 'units' },
+                        { itemName: 'Disinfecting Wipes', defaultQty: 24, minQty: 12, unit: 'canisters' }
                     ]
                 },
                 {
@@ -176,7 +188,13 @@ class Database {
                         { itemName: 'Degreaser Cleaner', defaultQty: 5, minQty: 3, unit: 'gallons' },
                         { itemName: 'Heavy-Duty Mop Heads', defaultQty: 6, minQty: 3, unit: 'units' },
                         { itemName: 'Safety Vests', defaultQty: 10, minQty: 5, unit: 'units' },
-                        { itemName: 'Work Gloves', defaultQty: 12, minQty: 6, unit: 'pairs' }
+                        { itemName: 'Work Gloves', defaultQty: 12, minQty: 6, unit: 'pairs' },
+                        { itemName: 'Hard Hats', defaultQty: 8, minQty: 4, unit: 'units' },
+                        { itemName: 'Brake Cleaner', defaultQty: 12, minQty: 6, unit: 'cans' },
+                        { itemName: 'Oil Absorbent Pads', defaultQty: 20, minQty: 10, unit: 'packs' },
+                        { itemName: 'Push Brooms', defaultQty: 4, minQty: 2, unit: 'units' },
+                        { itemName: 'Dustpans', defaultQty: 4, minQty: 2, unit: 'units' },
+                        { itemName: 'Wet Floor Signs', defaultQty: 6, minQty: 3, unit: 'units' }
                     ]
                 }
             ],
@@ -217,21 +235,55 @@ class Database {
                 }
             ],
             inventory: [
+                // Site 44 (Downtown) - Commercial
                 { id: 'INV1',  siteId: 'L1', item: 'Bleach',                     qty: 3,  minQty: 5,  reorderQty: 10, unit: 'gallons', lastRestocked: minNow(-432), restockFrequency: 'weekly', notes: 'Use for floors and surfaces' },
                 { id: 'INV2',  siteId: 'L1', item: 'Paper Towels',               qty: 24, minQty: 12, reorderQty: 24, unit: 'rolls', lastRestocked: minNow(-120), restockFrequency: 'weekly', notes: 'Standard dispensers' },
                 { id: 'INV3',  siteId: 'L1', item: 'Hand Soap',                  qty: 2,  minQty: 4,  reorderQty: 6,  unit: 'liters', lastRestocked: minNow(-600), restockFrequency: 'biweekly', notes: 'For all restrooms' },
                 { id: 'INV4',  siteId: 'L1', item: 'Trash Bags (65gal)',         qty: 40, minQty: 20, reorderQty: 50, unit: 'bags', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Executive areas priority' },
+                { id: 'INV4a', siteId: 'L1', item: 'Disinfectant Spray',         qty: 9,  minQty: 6,  reorderQty: 12, unit: 'cans', lastRestocked: minNow(-300), restockFrequency: 'weekly', notes: 'General surfaces' },
+                { id: 'INV4b', siteId: 'L1', item: 'Latex Gloves',               qty: 8,  minQty: 5,  reorderQty: 10, unit: 'boxes', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Stock levels good' },
+                { id: 'INV4c', siteId: 'L1', item: 'Glass Cleaner',              qty: 5,  minQty: 3,  reorderQty: 8,  unit: 'bottles', lastRestocked: minNow(-180), restockFrequency: 'weekly', notes: 'Executive area requirement' },
+                { id: 'INV4d', siteId: 'L1', item: 'Toilet Paper',               qty: 48, minQty: 24, reorderQty: 48, unit: 'rolls', lastRestocked: minNow(-144), restockFrequency: 'weekly', notes: 'All restrooms' },
+                { id: 'INV4e', siteId: 'L1', item: 'Cleaning Cloths',            qty: 10, minQty: 6,  reorderQty: 12, unit: 'packs', lastRestocked: minNow(-432), restockFrequency: 'biweekly', notes: 'Microfiber preferred' },
+                { id: 'INV4f', siteId: 'L1', item: 'Floor Wax',                  qty: 2,  minQty: 1,  reorderQty: 3,  unit: 'gallons', lastRestocked: minNow(-1440), restockFrequency: 'monthly', notes: 'Weekly polish' },
+
+                // Northpark Complex - Warehouse
                 { id: 'INV5',  siteId: 'L2', item: 'Mop Heads',                  qty: 1,  minQty: 3,  reorderQty: 6,  unit: 'units', lastRestocked: minNow(-1440), restockFrequency: 'monthly', notes: 'Warehouse-grade' },
                 { id: 'INV6',  siteId: 'L2', item: 'Disinfectant Spray',         qty: 8,  minQty: 6,  reorderQty: 12, unit: 'cans', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Industrial strength' },
                 { id: 'INV7',  siteId: 'L2', item: 'Latex Gloves',               qty: 5,  minQty: 10, reorderQty: 15, unit: 'boxes', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Low stock!' },
+                { id: 'INV7a', siteId: 'L2', item: 'Industrial Trash Bags',      qty: 35, minQty: 25, reorderQty: 50, unit: 'bags', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Heavy-duty' },
+                { id: 'INV7b', siteId: 'L2', item: 'Floor Degreaser',            qty: 6,  minQty: 4,  reorderQty: 10, unit: 'gallons', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Loading dock critical' },
+                { id: 'INV7c', siteId: 'L2', item: 'Safety Vests',               qty: 8,  minQty: 5,  reorderQty: 10, unit: 'units', lastRestocked: minNow(-600), restockFrequency: 'monthly', notes: 'OSHA compliant' },
+                { id: 'INV7d', siteId: 'L2', item: 'Hard Hats',                  qty: 4,  minQty: 3,  reorderQty: 6,  unit: 'units', lastRestocked: minNow(-1440), restockFrequency: 'monthly', notes: 'Safety equipment' },
+
+                // Apex Tower - Commercial Premium
                 { id: 'INV8',  siteId: 'L3', item: 'Glass Cleaner',              qty: 6,  minQty: 4,  reorderQty: 8,  unit: 'bottles', lastRestocked: minNow(-180), restockFrequency: 'weekly', notes: 'Premium VIP protocol' },
                 { id: 'INV9',  siteId: 'L3', item: 'Microfiber Cloths',          qty: 10, minQty: 8,  reorderQty: 12, unit: 'units', lastRestocked: minNow(-300), restockFrequency: 'biweekly', notes: 'Must be pristine' },
+                { id: 'INV9a', siteId: 'L3', item: 'Disinfectant Spray',         qty: 12, minQty: 8,  reorderQty: 15, unit: 'cans', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Premium surfaces' },
+                { id: 'INV9b', siteId: 'L3', item: 'Paper Towels',               qty: 32, minQty: 16, reorderQty: 32, unit: 'rolls', lastRestocked: minNow(-120), restockFrequency: 'weekly', notes: 'Executive restrooms' },
+                { id: 'INV9c', siteId: 'L3', item: 'Hand Soap',                  qty: 6,  minQty: 4,  reorderQty: 8,  unit: 'liters', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Premium brand required' },
+                { id: 'INV9d', siteId: 'L3', item: 'Latex Gloves',               qty: 12, minQty: 6,  reorderQty: 12, unit: 'boxes', lastRestocked: minNow(-360), restockFrequency: 'biweekly', notes: 'White gloves protocol' },
+
+                // Westside Clinic - Medical
                 { id: 'INV10', siteId: 'L4', item: 'Medical-Grade Disinfectant', qty: 2,  minQty: 6,  reorderQty: 10, unit: 'gallons', lastRestocked: minNow(-720), restockFrequency: 'weekly', notes: 'Medical-grade only!' },
                 { id: 'INV11', siteId: 'L4', item: 'PPE Gloves',                 qty: 20, minQty: 15, reorderQty: 30, unit: 'boxes', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Critical supply' },
+                { id: 'INV11a', siteId: 'L4', item: 'N95 Masks',                 qty: 15, minQty: 10, reorderQty: 20, unit: 'boxes', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Respiratory protection' },
+                { id: 'INV11b', siteId: 'L4', item: 'Biohazard Bags',            qty: 25, minQty: 15, reorderQty: 30, unit: 'bags', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Regulatory compliance' },
+                { id: 'INV11c', siteId: 'L4', item: 'Medical Tape',              qty: 8,  minQty: 6,  reorderQty: 12, unit: 'rolls', lastRestocked: minNow(-600), restockFrequency: 'biweekly', notes: 'Sterile supplies' },
+                { id: 'INV11d', siteId: 'L4', item: 'Sterile Gauze Pads',        qty: 75, minQty: 50, reorderQty: 100, unit: 'packs', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'High usage item' },
+                { id: 'INV11e', siteId: 'L4', item: 'Surface Wipes (Medical)',   qty: 10, minQty: 6,  reorderQty: 12, unit: 'canisters', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'EPA approved' },
+
+                // Easton Warehouse
                 { id: 'INV12', siteId: 'L5', item: 'Industrial Trash Bags',      qty: 30, minQty: 20, reorderQty: 50, unit: 'bags', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Heavy-duty industrial' },
-                { id: 'INV13', siteId: 'L5', item: 'Floor Degreaser',            qty: 2,  minQty: 4,  reorderQty: 8,  unit: 'gallons', lastRestocked: minNow(-840), restockFrequency: 'biweekly', notes: 'For loading dock' }
+                { id: 'INV13', siteId: 'L5', item: 'Floor Degreaser',            qty: 2,  minQty: 4,  reorderQty: 8,  unit: 'gallons', lastRestocked: minNow(-840), restockFrequency: 'biweekly', notes: 'For loading dock' },
+                { id: 'INV13a', siteId: 'L5', item: 'Push Brooms',               qty: 3,  minQty: 2,  reorderQty: 4,  unit: 'units', lastRestocked: minNow(-720), restockFrequency: 'monthly', notes: 'Warehouse floor maintenance' },
+                { id: 'INV13b', siteId: 'L5', item: 'Work Gloves',               qty: 10, minQty: 6,  reorderQty: 12, unit: 'pairs', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Heavy-duty work' },
+                { id: 'INV13c', siteId: 'L5', item: 'Safety Vests',              qty: 9,  minQty: 6,  reorderQty: 12, unit: 'units', lastRestocked: minNow(-600), restockFrequency: 'monthly', notes: 'High visibility required' },
+                { id: 'INV13d', siteId: 'L5', item: 'Oil Absorbent Pads',        qty: 15, minQty: 10, reorderQty: 20, unit: 'packs', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Spill control' },
+                { id: 'INV13e', siteId: 'L5', item: 'Disinfectant Spray',        qty: 6,  minQty: 4,  reorderQty: 8,  unit: 'cans', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Break room sanitizing' }
             ],
             supplyRequests: [
+                // PENDING - Awaiting approval
                 {
                     id: 'SR1',
                     siteId: 'L1',
@@ -253,6 +305,27 @@ class Database {
                     trackingNumber: null
                 },
                 {
+                    id: 'SR1a',
+                    siteId: 'L3',
+                    items: [
+                        { itemName: 'Glass Cleaner', qty: 12, unit: 'bottles', reason: 'routine' }
+                    ],
+                    status: 'pending',
+                    requestedBy: 'S3',
+                    requestedAt: minNow(-60),
+                    approvedBy: null,
+                    approvedAt: null,
+                    orderedAt: null,
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Premium VIP facility - weekly polish requirement',
+                    supplier: 'Premium Cleaners LLC',
+                    estimatedDelivery: minNow(180),
+                    trackingNumber: null
+                },
+
+                // APPROVED - Ready to order
+                {
                     id: 'SR2',
                     siteId: 'L4',
                     items: [
@@ -272,6 +345,28 @@ class Database {
                     estimatedDelivery: minNow(360),
                     trackingNumber: null
                 },
+                {
+                    id: 'SR2a',
+                    siteId: 'L5',
+                    items: [
+                        { itemName: 'Hard Hats', qty: 6, unit: 'units', reason: 'routine' },
+                        { itemName: 'Safety Vests', qty: 8, unit: 'units', reason: 'routine' }
+                    ],
+                    status: 'approved',
+                    requestedBy: 'S5',
+                    requestedAt: minNow(-240),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-120),
+                    orderedAt: null,
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Warehouse safety equipment - OSHA compliance',
+                    supplier: 'SafetyFirst Industrial',
+                    estimatedDelivery: minNow(480),
+                    trackingNumber: null
+                },
+
+                // ORDERED - In transit
                 {
                     id: 'SR3',
                     siteId: 'L2',
@@ -293,6 +388,27 @@ class Database {
                     trackingNumber: 'TRACK123456'
                 },
                 {
+                    id: 'SR3a',
+                    siteId: 'L1',
+                    items: [
+                        { itemName: 'Floor Wax', qty: 3, unit: 'gallons', reason: 'low_stock' }
+                    ],
+                    status: 'ordered',
+                    requestedBy: 'S6',
+                    requestedAt: minNow(-480),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-360),
+                    orderedAt: minNow(-180),
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Premium finish for executive floors',
+                    supplier: 'ProFinish Supplies',
+                    estimatedDelivery: minNow(360),
+                    trackingNumber: 'TRACK987654'
+                },
+
+                // DELIVERED - Awaiting receipt confirmation
+                {
                     id: 'SR4',
                     siteId: 'L5',
                     items: [
@@ -310,6 +426,107 @@ class Database {
                     supplier: 'EastCoast Chemical',
                     estimatedDelivery: minNow(-120),
                     trackingNumber: 'TRACK789012'
+                },
+                {
+                    id: 'SR4a',
+                    siteId: 'L2',
+                    items: [
+                        { itemName: 'Push Brooms', qty: 4, unit: 'units', reason: 'routine' },
+                        { itemName: 'Dustpans', qty: 4, unit: 'units', reason: 'routine' }
+                    ],
+                    status: 'delivered',
+                    requestedBy: 'S7',
+                    requestedAt: minNow(-900),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-780),
+                    orderedAt: minNow(-600),
+                    deliveredAt: minNow(-90),
+                    receivedAt: null,
+                    notes: 'Warehouse maintenance equipment',
+                    supplier: 'Warehouse Solutions Inc',
+                    estimatedDelivery: minNow(-150),
+                    trackingNumber: 'TRACK456789'
+                },
+
+                // RECEIVED - Completed
+                {
+                    id: 'SR5',
+                    siteId: 'L3',
+                    items: [
+                        { itemName: 'Microfiber Cloths', qty: 24, unit: 'packs', reason: 'routine' }
+                    ],
+                    status: 'received',
+                    requestedBy: 'S3',
+                    requestedAt: minNow(-1440),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-1320),
+                    orderedAt: minNow(-1200),
+                    deliveredAt: minNow(-360),
+                    receivedAt: minNow(-300),
+                    notes: 'Premium microfiber for VIP protocol',
+                    supplier: 'Premium Cleaners LLC',
+                    estimatedDelivery: minNow(-360),
+                    trackingNumber: 'TRACK234567'
+                },
+                {
+                    id: 'SR5a',
+                    siteId: 'L4',
+                    items: [
+                        { itemName: 'N95 Masks', qty: 25, unit: 'boxes', reason: 'routine' },
+                        { itemName: 'Sterile Gauze Pads', qty: 50, unit: 'packs', reason: 'routine' }
+                    ],
+                    status: 'received',
+                    requestedBy: 'S4',
+                    requestedAt: minNow(-2400),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-2280),
+                    orderedAt: minNow(-2160),
+                    deliveredAt: minNow(-1200),
+                    receivedAt: minNow(-1080),
+                    notes: 'Medical facility stock replenishment - received and verified',
+                    supplier: 'MedSupply Corp',
+                    estimatedDelivery: minNow(-1200),
+                    trackingNumber: 'TRACK345678'
+                },
+                {
+                    id: 'SR5b',
+                    siteId: 'L2',
+                    items: [
+                        { itemName: 'Safety Vests', qty: 10, unit: 'units', reason: 'routine' }
+                    ],
+                    status: 'received',
+                    requestedBy: 'S2',
+                    requestedAt: minNow(-3600),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-3480),
+                    orderedAt: minNow(-3360),
+                    deliveredAt: minNow(-2160),
+                    receivedAt: minNow(-2040),
+                    notes: 'Warehouse safety equipment - inventory updated',
+                    supplier: 'SafetyFirst Industrial',
+                    estimatedDelivery: minNow(-2160),
+                    trackingNumber: 'TRACK567890'
+                },
+
+                // CANCELLED - Didn't proceed
+                {
+                    id: 'SR6',
+                    siteId: 'L1',
+                    items: [
+                        { itemName: 'Toilet Paper', qty: 24, unit: 'rolls', reason: 'other' }
+                    ],
+                    status: 'cancelled',
+                    requestedBy: 'S1',
+                    requestedAt: minNow(-2400),
+                    approvedBy: null,
+                    approvedAt: null,
+                    orderedAt: null,
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Cancelled - found existing stock during inventory count',
+                    supplier: null,
+                    estimatedDelivery: null,
+                    trackingNumber: null
                 }
             ],
             shifts: [
@@ -324,14 +541,56 @@ class Database {
                 { id: 'SH9', staffIds: ['S2'], siteId: 'L4', targetTime: minNow(240),  status: 'upcoming',  type: 'shift', isRecurring: false, notes: '',                                  completedTasks: [], createdAt: now.toISOString() }
             ],
             feedEvents: [
+                // Shift/Clock Events
                 { id: 'E1', type: 'alert',   message: 'Alice Walker is 25m late for Site 44.',                   timestamp: minNow(-25)  },
                 { id: 'E2', type: 'success', message: 'Bob Smith clocked in at Northpark Complex.',              timestamp: minNow(-120) },
                 { id: 'E3', type: 'info',    message: 'Fiona Gallagher completed shift at Site 44.',            timestamp: minNow(-60)  },
                 { id: 'E4', type: 'alert',   message: 'Hannah Lee is 10m late for Apex Tower.',                 timestamp: minNow(-10)  },
                 { id: 'E5', type: 'success', message: 'Diana Prince clocked in at Westside Clinic.',            timestamp: minNow(-45)  },
-                { id: 'E6', type: 'info',    message: 'Restock requested at Northpark Complex by Bob Smith.',   timestamp: minNow(-30)  },
-                { id: 'E7', type: 'info',    message: 'Weekly deep clean completed at Easton Warehouse.',       timestamp: minNow(-200) },
-                { id: 'E8', type: 'alert',   message: 'Low supply of bleach at Westside Clinic.',              timestamp: minNow(-40)  }
+
+                // Supply Request Events - Request Creation
+                { id: 'E9', type: 'info',    message: 'Supply request created for Site 44 by Alice Walker (2 items).',    timestamp: minNow(-120) },
+                { id: 'E10', type: 'info',   message: 'Supply request created for Westside Clinic by Diana Prince (2 items).', timestamp: minNow(-300) },
+                { id: 'E11', type: 'info',   message: 'Supply request created for Northpark Complex by Bob Smith (2 items).', timestamp: minNow(-600) },
+                { id: 'E12', type: 'info',   message: 'Supply request created for Apex Tower by Charlie Davis (1 item).',    timestamp: minNow(-60) },
+                { id: 'E13', type: 'info',   message: 'Supply request created for Easton Warehouse by Evan Wright (2 items).', timestamp: minNow(-1200) },
+
+                // Supply Request Events - Approvals
+                { id: 'E14', type: 'success', message: 'Manager approved supply request for Westside Clinic (2 items).',     timestamp: minNow(-180) },
+                { id: 'E15', type: 'success', message: 'Manager approved supply request for Easton Warehouse (2 items).',     timestamp: minNow(-1080) },
+                { id: 'E16', type: 'success', message: 'Manager approved supply request for Northpark Complex (2 items).',    timestamp: minNow(-480) },
+                { id: 'E17', type: 'success', message: 'Manager approved supply request for Site 44 (1 item).',               timestamp: minNow(-360) },
+
+                // Supply Request Events - Ordering
+                { id: 'E18', type: 'info',    message: 'Supply order placed with Industrial Supplies Inc (Northpark) - TRACK123456.', timestamp: minNow(-240) },
+                { id: 'E19', type: 'info',    message: 'Supply order placed with EastCoast Chemical (Easton) - TRACK789012.',  timestamp: minNow(-960) },
+                { id: 'E20', type: 'info',    message: 'Supply order placed with ProFinish Supplies (Site 44) - TRACK987654.', timestamp: minNow(-180) },
+
+                // Supply Request Events - Delivery
+                { id: 'E21', type: 'success', message: 'Supply delivery arrived at Easton Warehouse from EastCoast Chemical.', timestamp: minNow(-60) },
+                { id: 'E22', type: 'success', message: 'Supply delivery arrived at Northpark Complex from Industrial Supplies.', timestamp: minNow(-180) },
+                { id: 'E23', type: 'success', message: 'Supply delivery arrived at Warehouse Solutions Inc (Northpark).', timestamp: minNow(-90) },
+
+                // Supply Request Events - Received/Confirmation
+                { id: 'E24', type: 'success', message: 'Charlie Davis received supply delivery at Apex Tower (24 packs microfiber).', timestamp: minNow(-300) },
+                { id: 'E25', type: 'success', message: 'Diana Prince received medical supplies at Westside Clinic (25 boxes masks, 50 packs gauze).', timestamp: minNow(-1080) },
+                { id: 'E26', type: 'success', message: 'Bob Smith received safety equipment at Northpark Complex (10 units vests).', timestamp: minNow(-2040) },
+
+                // Inventory Events
+                { id: 'E27', type: 'alert',   message: 'Low supply alert: Bleach at Site 44 (qty: 3, min: 5).',               timestamp: minNow(-432) },
+                { id: 'E28', type: 'alert',   message: 'Low supply alert: Medical-Grade Disinfectant at Westside Clinic (qty: 2, min: 6).', timestamp: minNow(-720) },
+                { id: 'E29', type: 'alert',   message: 'Low supply alert: Mop Heads at Northpark Complex (qty: 1, min: 3).',   timestamp: minNow(-1440) },
+                { id: 'E30', type: 'alert',   message: 'Low supply alert: Latex Gloves at Northpark Complex (qty: 5, min: 10).', timestamp: minNow(-480) },
+                { id: 'E31', type: 'alert',   message: 'Low supply alert: Floor Degreaser at Easton Warehouse (qty: 2, min: 4).', timestamp: minNow(-840) },
+
+                // Restock Events
+                { id: 'E32', type: 'info',    message: 'Restock completed at Site 44 - Paper Towels (qty: 24) - by Fiona Gallagher.', timestamp: minNow(-120) },
+                { id: 'E33', type: 'info',    message: 'Restock completed at Apex Tower - Glass Cleaner (qty: 6) - by Charlie Davis.', timestamp: minNow(-180) },
+                { id: 'E34', type: 'info',    message: 'Weekly deep clean completed at Easton Warehouse.',                       timestamp: minNow(-200) },
+                { id: 'E35', type: 'info',    message: 'Inventory template applied to Site 44 - Commercial Standard template.',   timestamp: minNow(-1800) },
+
+                // Cancelled Events
+                { id: 'E36', type: 'info',    message: 'Supply request cancelled at Site 44 - Toilet Paper (found existing stock).',  timestamp: minNow(-2400) }
             ],
             chatHistory: []
         };
