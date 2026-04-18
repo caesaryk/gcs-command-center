@@ -285,16 +285,16 @@ function feedItemHTML(item) {
     return `
         <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div class="absolute left-0 top-0 bottom-0 w-1 ${t.bar}"></div>
-            <div class="flex items-start gap-3 pl-3 pr-3 py-3">
-                <div class="${t.bg} ${t.text} p-1.5 rounded-full flex-shrink-0 mt-0.5">
-                    <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
+            <div class="flex items-start gap-3 pl-3 pr-3 py-4">
+                <div class="${t.bg} ${t.text} p-2 rounded-full flex-shrink-0 mt-0.5">
+                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-start gap-2">
-                        <span class="text-[10px] font-black uppercase tracking-wider ${t.text}">${escapeHTML(item.type)}</span>
-                        <span class="text-[10px] text-slate-400 shrink-0">${timeAgo(item.timestamp)}</span>
+                    <div class="flex justify-between items-start gap-2 mb-1">
+                        <span class="text-[11px] font-black uppercase tracking-wider ${t.text}">${escapeHTML(item.type)}</span>
+                        <span class="text-[11px] text-slate-400 shrink-0">${timeAgo(item.timestamp)}</span>
                     </div>
-                    <p class="text-xs text-slate-700 leading-relaxed mt-0.5">${escapeHTML(item.message)}</p>
+                    <p class="text-sm text-slate-700 leading-snug font-medium">${escapeHTML(item.message)}</p>
                 </div>
             </div>
         </button>`;
@@ -2283,7 +2283,8 @@ function renderInventoryTable() {
             <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusCls}">${statusTxt}</span></td>
             <td class="px-5 py-3 text-right">
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="requestRestock('${escapeHTML(item.id)}')" class="px-3 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Restock</button>
+                    <button onclick="openEditInventoryModal('${escapeHTML(item.id)}')" class="px-3 py-1 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">Edit Settings</button>
+                    <button onclick="requestRestock('${escapeHTML(item.id)}')" class="px-3 py-1 text-xs font-bold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Request Restock</button>
                     <button onclick="removeInvItem('${escapeHTML(item.id)}')" class="px-3 py-1 text-xs font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">Remove</button>
                 </div>
             </td>
@@ -2366,6 +2367,91 @@ window.requestRestock = function (invId) {
     const site = window.db.data.sites.find(s => s.id === item.siteId);
     window.db.addFeedEvent('info', `Restock requested: "${item.item}" at ${site ? site.name : 'unknown site'}.`);
     alert(`Restock requested for "${item.item}". Feed event logged.`);
+};
+
+window.openEditInventoryModal = function (invId) {
+    const item = window.db.data.inventory.find(i => i.id === invId);
+    if (!item) return;
+    const site = window.db.data.sites.find(s => s.id === item.siteId);
+
+    const html = `
+        <div class="space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                <strong>Understanding Restock Settings:</strong><br>
+                • <strong>Reorder Qty:</strong> How much to order when stock drops below minimum<br>
+                • <strong>Frequency:</strong> How often you plan to restock (daily, weekly, monthly)<br>
+                • <strong>Last Restocked:</strong> When this item was last received<br>
+                • <strong>Notes:</strong> Any special handling or requirements
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Item Name</label>
+                <p class="px-3 py-2 bg-slate-100 rounded-lg text-sm text-slate-700">${escapeHTML(item.item)}</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Current Stock Level</label>
+                <p class="px-3 py-2 bg-slate-100 rounded-lg text-sm text-slate-700">${item.qty} ${escapeHTML(item.unit)}</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Minimum Stock Level</label>
+                <p class="px-3 py-2 bg-slate-100 rounded-lg text-sm text-slate-700">${item.minQty} ${escapeHTML(item.unit)}</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Reorder Quantity (when below minimum) *</label>
+                <input type="number" id="edit-inv-reorder" value="${item.reorderQty}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                <p class="text-xs text-slate-500 mt-1">How much to order when stock reaches minimum</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Restock Frequency *</label>
+                <select id="edit-inv-frequency" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <option value="daily" ${item.restockFrequency === 'daily' ? 'selected' : ''}>Daily</option>
+                    <option value="weekly" ${item.restockFrequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                    <option value="biweekly" ${item.restockFrequency === 'biweekly' ? 'selected' : ''}>Bi-weekly</option>
+                    <option value="monthly" ${item.restockFrequency === 'monthly' ? 'selected' : ''}>Monthly</option>
+                </select>
+                <p class="text-xs text-slate-500 mt-1">How often this item is typically restocked</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-2">Special Notes</label>
+                <textarea id="edit-inv-notes" placeholder="e.g., Premium brand required, special storage needed..." rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-none">${escapeHTML(item.notes || '')}</textarea>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveEditInventory('${escapeHTML(invId)}')" class="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-colors">Save Changes</button>
+                <button onclick="closeDrawer()" class="flex-1 px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold rounded-lg transition-colors">Cancel</button>
+            </div>
+        </div>
+    `;
+    openDrawer(`Edit Item: ${escapeHTML(item.item)}`, html);
+};
+
+window.saveEditInventory = function (invId) {
+    const reorderQty = parseInt(document.getElementById('edit-inv-reorder').value) || 0;
+    const frequency = document.getElementById('edit-inv-frequency').value;
+    const notes = document.getElementById('edit-inv-notes').value.trim();
+
+    if (reorderQty <= 0) {
+        showToast('Reorder quantity must be greater than 0', 'error');
+        return;
+    }
+
+    window.db.data.inventory.forEach(item => {
+        if (item.id === invId) {
+            item.reorderQty = reorderQty;
+            item.restockFrequency = frequency;
+            item.notes = notes;
+        }
+    });
+
+    window.db.saveData();
+    showToast('Inventory settings updated', 'success');
+    closeDrawer();
+    renderInventoryTable();
 };
 
 // ─── Exceptions ───────────────────────────────────────────────────────────────
@@ -2663,9 +2749,7 @@ window.renderScheduleWeekView = function (shifts, data) {
     const container = document.getElementById('schedule-week-view');
     if (!container) return;
 
-    const today = new Date();
-    today.setDate(today.getDate() + scheduleViewWeekOffset * 7);
-    const week = getWeekDates(today);
+    const week = getWeekDates(scheduleViewWeekOffset);
 
     // Update date range display
     const rangeEl = document.getElementById('schedule-date-range');
