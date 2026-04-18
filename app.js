@@ -283,21 +283,23 @@ function feedItemHTML(item) {
     };
     const t = themes[item.type] || themes.info;
     return `
-        <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left relative bg-white rounded-lg border border-slate-300 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
-            <div class="absolute left-0 top-0 bottom-0 w-1.5 ${t.bar}"></div>
-            <div class="flex items-start gap-3 pl-4 pr-4 py-3">
-                <div class="${t.bg} ${t.text} p-2.5 rounded-full flex-shrink-0 mt-0">
-                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-start gap-2 mb-2">
-                        <span class="text-[12px] font-black uppercase tracking-widest ${t.text}">${escapeHTML(item.type)}</span>
-                        <span class="text-[12px] text-slate-500 shrink-0 font-medium">${timeAgo(item.timestamp)}</span>
+        <div class="w-full pb-2">
+            <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left bg-white rounded-lg border-2 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-3 min-h-[80px] block">
+                <div class="flex items-start gap-3">
+                    <div class="${t.bg} ${t.text} p-2.5 rounded-full flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
                     </div>
-                    <p class="text-base text-slate-800 leading-relaxed font-semibold">${escapeHTML(item.message)}</p>
+                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="text-[13px] font-black uppercase tracking-widest ${t.text}">${escapeHTML(item.type)}</span>
+                            <span class="text-[12px] text-slate-500 shrink-0">${timeAgo(item.timestamp)}</span>
+                        </div>
+                        <p class="text-sm text-slate-900 font-semibold leading-snug">${escapeHTML(item.message)}</p>
+                    </div>
                 </div>
-            </div>
-        </button>`;
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-lg ${t.bar}" style="margin-left:-8px;"></div>
+            </button>
+        </div>`;
 }
 
 function renderCSCenterFeed(feed) {
