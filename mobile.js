@@ -34,6 +34,123 @@ function escapeHTML(str) {
     return d.innerHTML;
 }
 
+/**
+ * Calculate distance between two geographic coordinates using Haversine formula
+ * @param {number} lat1 - User latitude
+ * @param {number} lon1 - User longitude
+ * @param {number} lat2 - Facility latitude
+ * @param {number} lon2 - Facility longitude
+ * @returns {number} Distance in meters
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+/**
+ * Check if user is within the geofence for a facility
+ * @param {number} userLat - User latitude
+ * @param {number} userLon - User longitude
+ * @param {Object} facility - Facility object with lat, lng, geofenceEnabled, geofenceRadius
+ * @returns {Object} { isWithin: boolean, distance: number }
+ */
+function isWithinGeofence(userLat, userLon, facility) {
+    if (!facility || !facility.lat || !facility.lng) {
+        return { isWithin: true, distance: 0 }; // No coordinates = no geofence check
+    }
+
+    if (!facility.geofenceEnabled) {
+        return { isWithin: true, distance: 0 }; // Geofence disabled
+    }
+
+    const distance = calculateDistance(userLat, userLon, facility.lat, facility.lng);
+    const radius = facility.geofenceRadius || 50;
+    return { isWithin: distance <= radius, distance: Math.round(distance) };
+}
+
+/**
+ * Request user location and validate geofence before clock-in
+ * @param {string} staffId - Staff ID
+ * @param {Object} shift - Shift object with site and other info
+ */
+window.requestLocationAndClockIn = function (staffId, shift) {
+    const hint = document.getElementById('clock-in-hint');
+    if (!shift || !shift.site) {
+        if (hint) hint.textContent = 'Error: Shift information missing';
+        return;
+    }
+
+    // Check if geolocation is available
+    if (!navigator.geolocation) {
+        if (hint) hint.textContent = 'Geolocation not available on this device';
+        return;
+    }
+
+    // Request location with high accuracy
+    if (hint) hint.textContent = 'Getting your location...';
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+            const accuracy = Math.round(position.coords.accuracy);
+
+            // Check if user is within geofence
+            const facility = shift.site;
+            const geofenceCheck = isWithinGeofence(userLat, userLon, facility);
+
+            if (geofenceCheck.isWithin) {
+                // User is within geofence, proceed with clock-in
+                if (hint) {
+                    hint.innerHTML = `📍 At ${escapeHTML(facility.name)} • ${accuracy}m accuracy`;
+                }
+                window.db.clockIn(staffId, shift.id);
+            } else {
+                // User is outside geofence
+                const distanceAway = geofenceCheck.distance;
+                const radiusRequired = facility.geofenceRadius || 50;
+                const metersOutside = distanceAway - radiusRequired;
+
+                if (hint) {
+                    hint.innerHTML = `⚠️ Outside zone by ${metersOutside}m (need to be within ${radiusRequired}m)`;
+                    hint.classList.add('text-red-500', 'font-semibold');
+                    setTimeout(() => {
+                        hint.classList.remove('text-red-500', 'font-semibold');
+                        hint.textContent = 'Hold for 1.5 seconds to confirm';
+                    }, 3000);
+                }
+            }
+        },
+        (error) => {
+            // Geolocation error
+            let errorMsg = 'Location error';
+            if (error.code === 1) {
+                errorMsg = 'Location permission denied';
+            } else if (error.code === 2) {
+                errorMsg = 'Location unavailable';
+            } else if (error.code === 3) {
+                errorMsg = 'Location request timeout';
+            }
+
+            if (hint) {
+                hint.textContent = errorMsg;
+                hint.classList.add('text-red-500', 'font-semibold');
+                setTimeout(() => {
+                    hint.classList.remove('text-red-500', 'font-semibold');
+                    hint.textContent = 'Hold for 1.5 seconds to confirm';
+                }, 3000);
+            }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+};
+
 // ─── Master Render ────────────────────────────────────────────────────────────
 
 function renderMobileApp() {
@@ -126,7 +243,8 @@ function renderClockIn(container, shift) {
             if (holding) {
                 btn.disabled = true;
                 btn.innerHTML = `<span class="material-symbols-outlined text-[36px]" style="font-variation-settings:'FILL' 1">check_circle</span><span>CLOCKED IN</span>`;
-                window.db.clockIn(CURRENT_USER_ID, shift.id);
+                // Use geolocation-enabled clock-in that validates geofence
+                window.requestLocationAndClockIn(CURRENT_USER_ID, shift);
             }
         }, 1500);
     };

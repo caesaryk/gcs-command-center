@@ -16,6 +16,7 @@ let schedulerDragDateStr    = null;
 let shiftDonutChart         = null;
 let scheduleViewMode        = 'week';
 let scheduleViewWeekOffset  = 0;
+let currentClientFilterId   = '';  // Filter for Facilities list: '' = all clients
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -374,28 +375,89 @@ window.setFeedFilter = function (filter) {
         : 'px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-full text-xs font-semibold';
 };
 
-// ─── CS Center: Map ───────────────────────────────────────────────────────────
+// ─── CS Center: Map with Leaflet & Geofencing ─────────────────────────────────
+
+let leafletMap = null;
+
+function initializeLeafletMap() {
+    const container = document.getElementById('map-container');
+    if (!container || leafletMap) return;
+
+    // Center on NYC (average of Chicago area in demo)
+    const centerLat = 41.8781;
+    const centerLng = -87.6298;
+
+    leafletMap = L.map('map-container').setView([centerLat, centerLng], 11);
+
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(leafletMap);
+}
 
 function renderMap(shifts) {
-    const map = document.getElementById('map-pins');
-    if (!map) return;
-    map.innerHTML = '';
-    const cols = 4, rows = 3;
-    shifts.forEach((s, i) => {
-        const col  = i % cols;
-        const row  = Math.floor(i / cols) % rows;
-        const left = 12 + col * 22;
-        const top  = 15 + row * 28;
-        const color = s.status === 'active' ? '#10b981' : s.status === 'late' ? '#ef4444' : '#94a3b8';
-        const pin   = document.createElement('div');
-        pin.style.cssText = `position:absolute;top:${top}%;left:${left}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;z-index:1`;
-        pin.title = `${s.staff ? s.staff.name : ''} — ${s.site ? s.site.name : ''}`;
-        pin.innerHTML = `
-            <div style="background:white;border:1px solid #e2e8f0;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;color:#1e293b;box-shadow:0 1px 4px rgba(0,0,0,0.1);white-space:nowrap;">${escapeHTML(s.site ? s.site.name : '')}</div>
-            <div style="width:32px;height:32px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:11px;">${escapeHTML(s.staff ? s.staff.avatar : '?')}</div>`;
-        pin.addEventListener('click', () => openMapPinDetail(s.id));
-        map.appendChild(pin);
+    // Initialize Leaflet map if not already done
+    if (!leafletMap) {
+        initializeLeafletMap();
+    }
+
+    // Clear existing layers (except the base tile layer)
+    leafletMap.eachLayer(function(layer) {
+        if (layer instanceof L.Circle || layer instanceof L.Marker || layer instanceof L.Popup) {
+            leafletMap.removeLayer(layer);
+        }
     });
+
+    // Get facilities for geofence circles
+    const facilities = window.db.data.sites || [];
+    const featureGroup = L.featureGroup().addTo(leafletMap);
+
+    // Draw geofence circles for facilities with geofencing enabled
+    facilities.forEach(facility => {
+        if (facility.geofenceEnabled && facility.lat && facility.lng) {
+            const radius = facility.geofenceRadius || 50;
+            const circle = L.circle([facility.lat, facility.lng], {
+                color: '#10b981',
+                fillColor: '#d1fae5',
+                fillOpacity: 0.2,
+                weight: 2,
+                radius: radius
+            }).addTo(featureGroup);
+
+            circle.bindPopup(`<strong>${escapeHTML(facility.name)}</strong><br>Geofence: ${radius}m`);
+            circle.on('click', () => viewFacilityDetails(facility.id));
+        }
+    });
+
+    // Add markers for shifts
+    shifts.forEach(s => {
+        if (!s.site || !s.site.lat || !s.site.lng) return;
+
+        const color = s.status === 'active' ? '#10b981' : s.status === 'late' ? '#ef4444' : '#3b82f6';
+        const iconHtml = `
+            <div style="width:40px;height:40px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">
+                ${escapeHTML(s.staff ? s.staff.avatar : '?')}
+            </div>
+        `;
+
+        const marker = L.marker([s.site.lat, s.site.lng], {
+            icon: L.divIcon({
+                html: iconHtml,
+                iconSize: [40, 40],
+                className: 'custom-marker'
+            })
+        }).addTo(featureGroup);
+
+        const popupContent = `<strong>${escapeHTML(s.staff ? s.staff.name : 'Unknown')}</strong><br>${escapeHTML(s.site.name || '')}`;
+        marker.bindPopup(popupContent);
+        marker.on('click', () => openMapPinDetail(s.id));
+    });
+
+    // Auto-fit map to show all markers and circles
+    if (featureGroup.getLayers().length > 0) {
+        leafletMap.fitBounds(featureGroup.getBounds(), { padding: [50, 50] });
+    }
 }
 
 window.openMapPinDetail = function (shiftId) {
@@ -1693,6 +1755,7 @@ function renderClientsAndFacilities() {
     renderClientsList();
     renderFacilitiesList();
     populateClientDropdowns();
+    populateFacilityClientFilter();
 }
 
 function renderClientsList() {
@@ -1725,11 +1788,19 @@ function renderFacilitiesList() {
     const container = document.getElementById('facilities-list');
     if (!container) return;
 
-    const sites = window.db.data.sites || [];
+    let sites = window.db.data.sites || [];
     const clients = window.db.data.clients || [];
 
+    // Filter by client if a filter is selected
+    if (currentClientFilterId) {
+        sites = sites.filter(site => site.clientId === currentClientFilterId);
+    }
+
     if (sites.length === 0) {
-        container.innerHTML = '<div class="px-5 py-8 text-center text-sm text-slate-400 italic">No facilities registered yet.</div>';
+        const message = currentClientFilterId
+            ? 'No facilities found for this client.'
+            : 'No facilities registered yet.';
+        container.innerHTML = `<div class="px-5 py-8 text-center text-sm text-slate-400 italic">${message}</div>`;
         return;
     }
 
@@ -1760,6 +1831,24 @@ function populateClientDropdowns() {
         select.innerHTML = '<option value="">-- Select Client --</option>' + clients.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
         select.value = currentValue;
     });
+}
+
+function populateFacilityClientFilter() {
+    const filterSelect = document.getElementById('facility-client-filter');
+    if (!filterSelect) return;
+
+    const clients = window.db.data.clients || [];
+    const currentValue = filterSelect.value;
+
+    filterSelect.innerHTML = '<option value="">All Clients</option>' +
+        clients.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
+
+    filterSelect.value = currentValue;
+}
+
+window.setClientFilter = function (clientId) {
+    currentClientFilterId = clientId;
+    renderFacilitiesList();
 }
 
 window.createNewClient = function () {
@@ -1962,6 +2051,26 @@ window.viewFacilityDetails = function (siteId) {
                 </div>
             ` : ''}
 
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-symbols-outlined text-amber-600 text-[18px]">location_on</span>
+                    <h4 class="font-bold text-slate-800 text-sm">Geofence Status</h4>
+                </div>
+                <div class="text-xs">
+                    ${details.geofenceEnabled ? `
+                        <div class="bg-green-50 border border-green-200 rounded p-2">
+                            <div class="text-green-900 font-semibold">✓ Enabled</div>
+                            <div class="text-green-700 text-xs mt-1">Radius: ${details.geofenceRadius || 50}m</div>
+                        </div>
+                    ` : `
+                        <div class="bg-slate-50 border border-slate-200 rounded p-2">
+                            <div class="text-slate-600 font-semibold">○ Disabled</div>
+                            <div class="text-slate-500 text-xs mt-1">Auto clock-in/out is off</div>
+                        </div>
+                    `}
+                </div>
+            </div>
+
             <button onclick="window.openEditFacilityModal('${escapeHTML(siteId)}')" class="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm transition-colors mt-4">Edit Facility</button>
         </div>
     `;
@@ -1985,6 +2094,14 @@ window.openEditFacilityModal = function (siteId) {
     document.getElementById('edit-facility-sqft').value = facility.squareFeet || '';
     document.getElementById('edit-facility-notes').value = facility.notes || '';
     document.getElementById('edit-facility-active').checked = facility.isActive !== false;
+
+    // Geofence fields
+    document.getElementById('edit-facility-geofence-enabled').checked = facility.geofenceEnabled || false;
+    document.getElementById('edit-facility-geofence-radius').value = facility.geofenceRadius || 50;
+    document.getElementById('edit-facility-lat').value = facility.lat || '';
+    document.getElementById('edit-facility-lng').value = facility.lng || '';
+    document.getElementById('edit-facility-geofence-accuracy').value = '15m';
+
     document.getElementById('edit-facility-modal').classList.remove('hidden');
 };
 
@@ -2001,7 +2118,9 @@ window.saveFacilityChanges = function () {
         serviceType: document.getElementById('edit-facility-type').value.trim(),
         squareFeet: parseInt(document.getElementById('edit-facility-sqft').value) || 0,
         notes: document.getElementById('edit-facility-notes').value.trim(),
-        isActive: document.getElementById('edit-facility-active').checked
+        isActive: document.getElementById('edit-facility-active').checked,
+        geofenceEnabled: document.getElementById('edit-facility-geofence-enabled').checked,
+        geofenceRadius: parseInt(document.getElementById('edit-facility-geofence-radius').value) || 50
     };
 
     if (!updates.name || !updates.address) { alert('Facility name and address are required.'); return; }
@@ -2110,9 +2229,19 @@ function renderInventory() {
         if (invSite) {
             invSite.innerHTML = sites.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.name)}</option>`).join('');
         }
+
+        // Populate add-form template dropdown
+        const invTemplate = document.getElementById('inv-template');
+        if (invTemplate) {
+            const templates = window.db.data.inventoryTemplates || [];
+            invTemplate.innerHTML = templates.map(t => `<option value="${escapeHTML(t.id)}">${escapeHTML(t.name)}</option>`).join('');
+        }
     }
 
     renderInventoryTable();
+    // Also initialize the supply requests and templates views
+    renderSupplyRequests();
+    renderTemplates();
 }
 
 function renderInventoryTable() {
@@ -2122,7 +2251,7 @@ function renderInventoryTable() {
     if (!tbody) return;
 
     if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400 italic">No inventory items found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-8 text-center text-sm text-slate-400 italic">No inventory items found.</td></tr>`;
         return;
     }
 
@@ -2132,6 +2261,9 @@ function renderInventoryTable() {
         const isLow      = !isCritical && item.qty < item.minQty;
         const statusCls  = isCritical ? 'bg-red-100 text-red-700 border-red-200' : isLow ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200';
         const statusTxt  = isCritical ? 'Critical' : isLow ? 'Low Stock' : 'OK';
+        const lastRestocked = item.lastRestocked ? new Date(item.lastRestocked).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never';
+        const frequency = item.restockFrequency || 'weekly';
+
         return `<tr class="hover:bg-slate-50 transition-colors group">
             <td class="px-5 py-3 font-semibold text-slate-900">${escapeHTML(item.item)}</td>
             <td class="px-5 py-3 text-xs text-slate-500">${escapeHTML(site ? site.name : item.siteId)}</td>
@@ -2143,6 +2275,8 @@ function renderInventoryTable() {
                 </div>
             </td>
             <td class="px-5 py-3 text-sm text-slate-600">${item.minQty} ${escapeHTML(item.unit)}</td>
+            <td class="px-5 py-3 text-xs text-slate-600 capitalize">${frequency}</td>
+            <td class="px-5 py-3 text-xs text-slate-600">${lastRestocked}</td>
             <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusCls}">${statusTxt}</span></td>
             <td class="px-5 py-3 text-right">
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2168,14 +2302,47 @@ window.toggleAddInventoryForm = function () {
     document.getElementById('add-inventory-form').classList.toggle('hidden');
 };
 
+window.toggleAddToType = function () {
+    const addToSelect = document.getElementById('inv-add-to');
+    const siteSelect = document.getElementById('inv-site');
+    const templateSelect = document.getElementById('inv-template');
+    const targetLabel = document.getElementById('inv-target-label');
+
+    if (addToSelect.value === 'site') {
+        siteSelect.classList.remove('hidden');
+        templateSelect.classList.add('hidden');
+        targetLabel.textContent = 'Facility *';
+    } else {
+        siteSelect.classList.add('hidden');
+        templateSelect.classList.remove('hidden');
+        targetLabel.textContent = 'Template *';
+    }
+};
+
 window.submitAddInventory = function () {
-    const siteId = document.getElementById('inv-site').value;
-    const item   = document.getElementById('inv-item').value.trim();
-    const qty    = document.getElementById('inv-qty').value;
-    const minQty = document.getElementById('inv-minqty').value;
-    const unit   = document.getElementById('inv-unit').value.trim();
-    if (!item || !qty || !minQty || !unit) { alert('Please fill in all fields.'); return; }
-    window.db.addInventoryItem(siteId, item, qty, minQty, unit);
+    const addToType = document.getElementById('inv-add-to').value;
+    const item      = document.getElementById('inv-item').value.trim();
+    const qty       = document.getElementById('inv-qty').value;
+    const minQty    = document.getElementById('inv-minqty').value;
+    const unit      = document.getElementById('inv-unit').value.trim();
+
+    if (!item || !qty || !minQty || !unit) {
+        alert('Please fill in all fields.');
+        return;
+    }
+
+    if (addToType === 'site') {
+        const siteId = document.getElementById('inv-site').value;
+        if (!siteId) { alert('Please select a facility.'); return; }
+        window.db.addInventoryItem(siteId, item, qty, minQty, unit);
+        showToast(`Added "${item}" to facility inventory`, 'success');
+    } else if (addToType === 'template') {
+        const templateId = document.getElementById('inv-template').value;
+        if (!templateId) { alert('Please select a template.'); return; }
+        window.db.addItemToTemplate(templateId, item, qty, minQty, unit);
+        showToast(`Added "${item}" to template`, 'success');
+    }
+
     ['inv-item','inv-qty','inv-minqty','inv-unit'].forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('add-inventory-form').classList.add('hidden');
     renderInventoryTable();
@@ -2695,6 +2862,527 @@ function getWeekDates(date) {
     }
     return week;
 }
+
+// ─── Inventory & Supply Request Management ─────────────────────────────────────
+
+window.switchInventoryTab = function (tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.inventory-tab-content').forEach(tab => tab.classList.add('hidden'));
+    document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-primary', 'text-primary');
+        btn.classList.add('border-transparent', 'text-slate-600');
+    });
+
+    // Show active tab
+    const tabEl = document.getElementById(`tab-${tabName.replace('_', '-')}`);
+    if (tabEl) {
+        tabEl.classList.remove('hidden');
+        const btn = document.querySelector(`[data-tab="${tabName}"]`);
+        if (btn) {
+            btn.classList.add('active', 'border-primary', 'text-primary');
+            btn.classList.remove('border-transparent', 'text-slate-600');
+        }
+    }
+
+    // Re-render content for the selected tab
+    if (tabName === 'requests') {
+        renderSupplyRequests();
+    } else if (tabName === 'templates') {
+        renderTemplates();
+    }
+};
+
+window.openCreateRequestModal = function () {
+    const modal = document.getElementById('create-supply-request-modal');
+    if (!modal) return;
+
+    // Populate site dropdown
+    const siteSelect = document.getElementById('request-site');
+    const sites = window.db.data.sites;
+    siteSelect.innerHTML = '<option value="">-- Select Facility --</option>' +
+        sites.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+
+    // Reset form
+    document.getElementById('request-reason').value = 'low_stock';
+    document.getElementById('request-supplier').value = '';
+    document.getElementById('request-notes').value = '';
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // On site change, populate items
+    siteSelect.onchange = function () {
+        const siteId = this.value;
+        const itemsList = document.getElementById('request-items-list');
+        if (!siteId) {
+            itemsList.innerHTML = '<p class="text-slate-400 text-sm">Select a facility first</p>';
+            return;
+        }
+
+        const inventory = window.db.getInventory(siteId);
+        let html = '';
+        if (inventory.length === 0) {
+            html = '<p class="text-slate-400 text-sm">No items in inventory for this facility</p>';
+        } else {
+            inventory.forEach(item => {
+                const isLow = item.qty < item.minQty;
+                html += `<label class="flex items-center gap-2 p-2 hover:bg-white rounded cursor-pointer">
+                    <input type="checkbox" value="${item.id}" class="request-item-checkbox" ${isLow ? 'checked' : ''} data-name="${escapeHTML(item.item)}" data-qty="${item.reorderQty || item.minQty}" data-unit="${escapeHTML(item.unit)}" />
+                    <span class="text-sm">${escapeHTML(item.item)} <span class="text-slate-500">(${item.qty}/${item.minQty} ${item.unit})</span>${isLow ? ' 🔴' : ''}</span>
+                </label>`;
+            });
+        }
+        itemsList.innerHTML = html;
+    };
+};
+
+window.submitSupplyRequest = function () {
+    const siteId = document.getElementById('request-site').value;
+    const reason = document.getElementById('request-reason').value;
+    const supplier = document.getElementById('request-supplier').value;
+    const notes = document.getElementById('request-notes').value;
+
+    if (!siteId) {
+        showToast('Please select a facility', 'error');
+        return;
+    }
+
+    // Get selected items
+    const items = [];
+    document.querySelectorAll('.request-item-checkbox:checked').forEach(checkbox => {
+        items.push({
+            itemName: checkbox.dataset.name,
+            qty: parseInt(checkbox.dataset.qty) || 1,
+            unit: checkbox.dataset.unit,
+            reason: reason
+        });
+    });
+
+    if (items.length === 0) {
+        showToast('Please select at least one item', 'error');
+        return;
+    }
+
+    const session = window.db.getSession();
+    const requestedBy = session?.staffId || 'U1';
+
+    try {
+        const request = window.db.createSupplyRequest(siteId, items, requestedBy, notes, supplier);
+        showToast(`Supply request created with ${items.length} items`, 'success');
+        document.getElementById('create-supply-request-modal').classList.add('hidden');
+        renderSupplyRequests();
+    } catch (err) {
+        showToast('Error creating supply request', 'error');
+    }
+};
+
+window.renderSupplyRequests = function () {
+    const statusFilter = document.getElementById('supply-status-filter')?.value || '';
+    const siteFilter = document.getElementById('supply-site-filter')?.value || '';
+
+    let requests = window.db.data.supplyRequests || [];
+
+    if (statusFilter) {
+        requests = requests.filter(r => r.status === statusFilter);
+    }
+    if (siteFilter) {
+        requests = requests.filter(r => r.siteId === siteFilter);
+    }
+
+    // Sort by date (newest first)
+    requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+    const tbody = document.getElementById('supply-requests-body');
+    if (!tbody) return;
+
+    if (requests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-slate-400">No supply requests found</td></tr>';
+        return;
+    }
+
+    const statusColors = {
+        pending: 'gray',
+        approved: 'blue',
+        ordered: 'yellow',
+        delivered: 'emerald',
+        received: 'green',
+        cancelled: 'red'
+    };
+
+    let html = '';
+    requests.forEach(req => {
+        const site = window.db.data.sites.find(s => s.id === req.siteId);
+        const staff = window.db.data.staff.find(s => s.id === req.requestedBy);
+        const requestedDate = new Date(req.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const statusColor = statusColors[req.status] || 'gray';
+        const itemCount = req.items ? req.items.length : 0;
+
+        html += `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openRequestDetailsDrawer('${req.id}')">
+            <td class="px-5 py-3 text-sm font-mono text-slate-600">${escapeHTML(req.id)}</td>
+            <td class="px-5 py-3 text-sm">${escapeHTML(site ? site.name : req.siteId)}</td>
+            <td class="px-5 py-3 text-sm text-slate-600">${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
+            <td class="px-5 py-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-bold bg-${statusColor}-100 text-${statusColor}-700">${req.status}</span></td>
+            <td class="px-5 py-3 text-sm text-slate-600">${requestedDate}</td>
+            <td class="px-5 py-3 text-sm">${escapeHTML(staff ? staff.name : 'Unknown')}</td>
+            <td class="px-5 py-3 text-right">
+                <button onclick="event.stopPropagation(); openRequestDetailsDrawer('${req.id}')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-bold rounded transition-colors">View</button>
+            </td>
+        </tr>`;
+    });
+
+    tbody.innerHTML = html;
+
+    // Populate site filter dropdown
+    const siteFilterEl = document.getElementById('supply-site-filter');
+    if (siteFilterEl && !siteFilterEl.dataset.populated) {
+        const sites = window.db.data.sites;
+        const currentValue = siteFilterEl.value;
+        siteFilterEl.innerHTML = '<option value="">All Facilities</option>' +
+            sites.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+        siteFilterEl.value = currentValue;
+        siteFilterEl.dataset.populated = 'true';
+    }
+};
+
+window.openRequestDetailsDrawer = function (requestId) {
+    const request = window.db.data.supplyRequests.find(r => r.id === requestId);
+    if (!request) return;
+
+    const site = window.db.data.sites.find(s => s.id === request.siteId);
+    const requestedBy = window.db.data.staff.find(s => s.id === request.requestedBy);
+    const approvedBy = request.approvedBy ? window.db.data.staff.find(s => s.id === request.approvedBy) : null;
+
+    const statusColors = {
+        pending: 'gray',
+        approved: 'blue',
+        ordered: 'yellow',
+        delivered: 'emerald',
+        received: 'green',
+        cancelled: 'red'
+    };
+    const statusColor = statusColors[request.status] || 'gray';
+
+    let timeline = '';
+    const events = [
+        { label: 'Requested', date: request.requestedAt, user: requestedBy },
+        { label: 'Approved', date: request.approvedAt, user: approvedBy },
+        { label: 'Ordered', date: request.orderedAt, user: null },
+        { label: 'Delivered', date: request.deliveredAt, user: null },
+        { label: 'Received', date: request.receivedAt, user: null }
+    ];
+
+    events.forEach((event, idx) => {
+        if (event.date) {
+            const dateStr = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const userStr = event.user ? ` by ${event.user.name}` : '';
+            timeline += `<div class="flex gap-4 mb-4">
+                <div class="flex flex-col items-center">
+                    <div class="w-3 h-3 bg-${statusColor}-500 rounded-full"></div>
+                    <div class="w-0.5 h-8 bg-slate-200 my-1"></div>
+                </div>
+                <div>
+                    <p class="font-bold text-sm text-slate-900">${event.label}</p>
+                    <p class="text-xs text-slate-600">${dateStr}${userStr}</p>
+                </div>
+            </div>`;
+        }
+    });
+
+    const itemsHtml = request.items.map(item =>
+        `<div class="flex justify-between text-sm py-2 border-b border-slate-100">
+            <span>${escapeHTML(item.itemName)}</span>
+            <span class="font-bold">${item.qty} ${escapeHTML(item.unit)}</span>
+        </div>`
+    ).join('');
+
+    const drawer = document.getElementById('global-drawer');
+    const content = drawer.querySelector('#drawer-content');
+    const title = drawer.querySelector('#drawer-title');
+
+    title.textContent = `Supply Request ${request.id}`;
+    content.innerHTML = `
+        <div class="space-y-5">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Facility</p>
+                    <p class="text-lg font-bold text-slate-900">${escapeHTML(site ? site.name : request.siteId)}</p>
+                </div>
+                <span class="px-3 py-1 rounded-full text-sm font-bold bg-${statusColor}-100 text-${statusColor}-700">${request.status}</span>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-4">
+                <h4 class="font-bold text-sm text-slate-900 mb-3">Timeline</h4>
+                <div class="text-sm">${timeline}</div>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-sm text-slate-900 mb-3">Items Requested (${request.items.length})</h4>
+                <div class="border border-slate-200 rounded-lg">
+                    ${itemsHtml}
+                </div>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-sm text-slate-900 mb-2">Details</h4>
+                <div class="space-y-2 text-sm">
+                    <div><span class="text-slate-600">Supplier:</span> <span class="font-bold">${request.supplier || 'Not specified'}</span></div>
+                    <div><span class="text-slate-600">Tracking:</span> <span class="font-bold">${request.trackingNumber || 'Not available'}</span></div>
+                    ${request.notes ? `<div><span class="text-slate-600">Notes:</span> <span class="font-bold">${escapeHTML(request.notes)}</span></div>` : ''}
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-4">
+                ${request.status === 'pending' ? `
+                    <button onclick="updateRequestStatus('${request.id}', 'approved')" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-sm transition-colors">Approve</button>
+                    <button onclick="cancelSupplyRequest('${request.id}')" class="flex-1 px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded text-sm transition-colors">Cancel</button>
+                ` : request.status === 'approved' ? `
+                    <button onclick="updateRequestStatus('${request.id}', 'ordered')" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-sm transition-colors">Mark as Ordered</button>
+                ` : request.status === 'delivered' ? `
+                    <button onclick="updateRequestStatus('${request.id}', 'received')" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-sm transition-colors">Confirm Received</button>
+                ` : ''}
+                <button onclick="closeDrawer()" class="flex-1 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-sm transition-colors">Close</button>
+            </div>
+        </div>
+    `;
+
+    openDrawer();
+};
+
+window.updateRequestStatus = function (requestId, newStatus, metadata = {}) {
+    try {
+        window.db.updateSupplyRequestStatus(requestId, newStatus, metadata);
+        showToast(`Request status updated to ${newStatus}`, 'success');
+        openRequestDetailsDrawer(requestId);
+        renderSupplyRequests();
+    } catch (err) {
+        showToast('Error updating request', 'error');
+    }
+};
+
+window.cancelSupplyRequest = function (requestId) {
+    if (confirm('Are you sure you want to cancel this request?')) {
+        try {
+            window.db.cancelSupplyRequest(requestId);
+            showToast('Request cancelled', 'success');
+            closeDrawer();
+            renderSupplyRequests();
+        } catch (err) {
+            showToast('Error cancelling request', 'error');
+        }
+    }
+};
+
+window.renderTemplates = function () {
+    const templates = window.db.getAllInventoryTemplates();
+    const grid = document.getElementById('templates-grid');
+    if (!grid) return;
+
+    if (templates.length === 0) {
+        grid.innerHTML = '<p class="text-center text-slate-400 col-span-full">No templates available</p>';
+        return;
+    }
+
+    let html = '';
+    templates.forEach(template => {
+        html += `<div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+            <h3 class="font-bold text-slate-900 text-sm mb-1">${escapeHTML(template.name)}</h3>
+            <p class="text-xs text-slate-500 mb-3">Applies to: ${template.serviceTypes.join(', ')}</p>
+            <p class="text-xs text-slate-600 mb-4">${template.items.length} items</p>
+            <div class="flex gap-2">
+                <button onclick="openTemplatePreview('${template.id}')" class="flex-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded text-xs transition-colors">Preview</button>
+                <button onclick="openEditTemplateModal('${template.id}')" class="flex-1 px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold rounded text-xs transition-colors">Edit</button>
+            </div>
+            <button onclick="showApplyTemplateOptions('${template.id}')" class="w-full px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs transition-colors mt-2">Apply to Facility</button>
+        </div>`;
+    });
+
+    grid.innerHTML = html;
+};
+
+window.openTemplatePreview = function (templateId) {
+    const template = window.db.data.inventoryTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    const drawer = document.getElementById('global-drawer');
+    const content = drawer.querySelector('#drawer-content');
+    const title = drawer.querySelector('#drawer-title');
+
+    title.textContent = `Template: ${template.name}`;
+
+    let itemsHtml = template.items.map(item =>
+        `<div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
+            <span>${escapeHTML(item.itemName)}</span>
+            <span class="text-slate-600">${item.defaultQty} ${item.unit} (min: ${item.minQty})</span>
+        </div>`
+    ).join('');
+
+    content.innerHTML = `
+        <div class="space-y-4">
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold tracking-wide mb-1">Template Name</p>
+                <p class="font-bold text-slate-900">${escapeHTML(template.name)}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold tracking-wide mb-1">Applies To</p>
+                <p class="font-bold text-slate-900">${template.serviceTypes.join(', ')}</p>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-900 text-sm mb-3">Items (${template.items.length})</h3>
+                <div class="border border-slate-200 rounded-lg">
+                    ${itemsHtml}
+                </div>
+            </div>
+            <button onclick="closeDrawer()" class="w-full px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-sm transition-colors">Close</button>
+        </div>
+    `;
+
+    openDrawer();
+};
+
+window.showApplyTemplateOptions = function (templateId) {
+    const template = window.db.data.inventoryTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Show facility selection modal
+    const sites = window.db.data.sites.filter(s => template.serviceTypes.includes(s.serviceType));
+
+    if (sites.length === 0) {
+        showToast(`No facilities match this template (${template.serviceTypes.join(', ')})`, 'info');
+        return;
+    }
+
+    let options = '<div class="space-y-2">';
+    sites.forEach(site => {
+        options += `<button onclick="applyTemplateConfirm('${template.id}', '${site.id}')" class="w-full px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded text-sm transition-colors text-left">${escapeHTML(site.name)}</button>`;
+    });
+    options += '</div>';
+
+    const drawer = document.getElementById('global-drawer');
+    const content = drawer.querySelector('#drawer-content');
+    const title = drawer.querySelector('#drawer-title');
+
+    title.textContent = `Apply ${template.name}`;
+    content.innerHTML = `
+        <div class="space-y-4">
+            <p class="text-sm text-slate-600">Select a facility to apply this template:</p>
+            ${options}
+            <button onclick="closeDrawer()" class="w-full px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-sm transition-colors">Cancel</button>
+        </div>
+    `;
+
+    openDrawer();
+};
+
+window.applyTemplateConfirm = function (templateId, siteId) {
+    try {
+        window.db.applyTemplateToFacility(siteId, templateId);
+        showToast('Template applied successfully', 'success');
+        closeDrawer();
+        renderTemplates();
+        renderInventory();
+    } catch (err) {
+        showToast('Error applying template', 'error');
+    }
+};
+
+window.openEditTemplateModal = function (templateId) {
+    const template = window.db.data.inventoryTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    let itemsHtml = template.items.map((item, idx) =>
+        `<div class="flex gap-2 items-center py-2 border-b border-slate-100">
+            <input type="text" value="${escapeHTML(item.itemName)}" placeholder="Item name"
+                class="flex-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                id="template-item-name-${idx}"/>
+            <input type="number" value="${item.defaultQty}" placeholder="Qty" min="0"
+                class="w-16 px-2 py-1 text-sm border border-slate-200 rounded"
+                id="template-item-qty-${idx}"/>
+            <input type="text" value="${escapeHTML(item.unit)}" placeholder="Unit"
+                class="w-20 px-2 py-1 text-sm border border-slate-200 rounded"
+                id="template-item-unit-${idx}"/>
+            <input type="number" value="${item.minQty}" placeholder="Min" min="0"
+                class="w-16 px-2 py-1 text-sm border border-slate-200 rounded"
+                id="template-item-min-${idx}"/>
+            <button onclick="removeTemplateItem('${templateId}', ${idx})" class="px-2 py-1 text-red-600 hover:bg-red-50 rounded text-xs font-bold">Remove</button>
+        </div>`
+    ).join('');
+
+    const html = `
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-bold text-slate-900 text-sm mb-2">Items</h3>
+                <div class="border border-slate-200 rounded-lg p-2 bg-slate-50 max-h-60 overflow-y-auto">
+                    <div class="text-xs text-slate-500 mb-2 flex gap-2 items-center font-bold sticky top-0 bg-slate-50 pb-2">
+                        <span class="flex-1">Name</span>
+                        <span class="w-16">Default</span>
+                        <span class="w-20">Unit</span>
+                        <span class="w-16">Min</span>
+                        <span class="w-16"></span>
+                    </div>
+                    ${itemsHtml || '<p class="text-xs text-slate-400 text-center py-2">No items yet</p>'}
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-slate-900 text-sm mb-2">Add Item to Template</h3>
+                <div class="space-y-2">
+                    <input type="text" id="new-item-name" placeholder="Item name" class="w-full px-3 py-2 border border-slate-200 rounded text-sm"/>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="number" id="new-item-qty" placeholder="Default qty" min="0" class="px-3 py-2 border border-slate-200 rounded text-sm"/>
+                        <input type="text" id="new-item-unit" placeholder="Unit" class="px-3 py-2 border border-slate-200 rounded text-sm"/>
+                        <input type="number" id="new-item-min" placeholder="Min qty" min="0" class="px-3 py-2 border border-slate-200 rounded text-sm"/>
+                    </div>
+                    <button onclick="addItemToTemplateFromModal('${templateId}')" class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-sm transition-colors">Add Item</button>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="saveTemplateChanges('${templateId}')" class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-sm transition-colors">Save Changes</button>
+                <button onclick="closeDrawer()" class="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-sm transition-colors">Close</button>
+            </div>
+        </div>
+    `;
+
+    openDrawer(`Edit Template: ${template.name}`, html);
+};
+
+window.addItemToTemplateFromModal = function (templateId) {
+    const name = document.getElementById('new-item-name').value.trim();
+    const qty = document.getElementById('new-item-qty').value;
+    const unit = document.getElementById('new-item-unit').value.trim();
+    const minQty = document.getElementById('new-item-min').value;
+
+    if (!name || !qty || !unit || !minQty) {
+        showToast('Please fill in all fields', 'warning');
+        return;
+    }
+
+    window.db.addItemToTemplate(templateId, name, qty, minQty, unit);
+    showToast(`Added "${name}" to template`, 'success');
+    openEditTemplateModal(templateId);
+};
+
+window.removeTemplateItem = function (templateId, itemIndex) {
+    const template = window.db.data.inventoryTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    const itemName = template.items[itemIndex].itemName;
+    if (confirm(`Remove "${itemName}" from template?`)) {
+        template.items.splice(itemIndex, 1);
+        window.db.saveData();
+        showToast(`Removed "${itemName}"`, 'success');
+        openEditTemplateModal(templateId);
+    }
+};
+
+window.saveTemplateChanges = function (templateId) {
+    const template = window.db.data.inventoryTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    closeDrawer();
+    showToast('Template updated', 'success');
+    renderTemplates();
+};
 
 // ─── Global Search ────────────────────────────────────────────────────────────
 

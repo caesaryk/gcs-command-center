@@ -44,6 +44,7 @@ class Database {
             if (data) {
                 this.migrateShiftSchema(data);
                 this.migrateStaffRoles(data);
+                this.migrateInventorySchema(data);
             }
             return data;
         } catch (err) {
@@ -77,6 +78,23 @@ class Database {
                 if (!staff.startDate) staff.startDate = new Date().toISOString();
             });
         }
+    }
+
+    migrateInventorySchema(data) {
+        // Add new inventory fields to existing items
+        const now = new Date().toISOString();
+        if (data.inventory) {
+            data.inventory.forEach(item => {
+                if (!item.reorderQty) item.reorderQty = item.minQty;
+                if (!item.lastRestocked) item.lastRestocked = now;
+                if (!item.restockFrequency) item.restockFrequency = 'weekly';
+                if (!item.notes) item.notes = '';
+            });
+        }
+        // Initialize supplyRequests if missing
+        if (!data.supplyRequests) data.supplyRequests = [];
+        // Initialize inventoryTemplates if missing
+        if (!data.inventoryTemplates) data.inventoryTemplates = [];
     }
 
     saveData() {
@@ -121,6 +139,47 @@ class Database {
                 { id: 'C3', name: 'Tri-State Logistics', contact: 'Michael Torres', phone: '908-555-0103', email: 'ops@tristate.com', address: '200 Industrial Park Drive, Newark, NJ 07102', notes: 'Warehouse operations - 24/7 access required', createdAt: now.toISOString() },
                 { id: 'C4', name: 'Empire Building Associates', contact: 'Jessica Williams', phone: '212-555-0104', email: 'facilities@empirebd.com', address: '350 5th Avenue, New York, NY 10118', notes: 'Multi-floor commercial - premium account', createdAt: now.toISOString() }
             ],
+            inventoryTemplates: [
+                {
+                    id: 'TMPL1',
+                    name: 'Commercial Standard',
+                    serviceTypes: ['commercial'],
+                    items: [
+                        { itemName: 'Bleach', defaultQty: 5, minQty: 3, unit: 'gallons' },
+                        { itemName: 'Paper Towels', defaultQty: 24, minQty: 12, unit: 'rolls' },
+                        { itemName: 'Hand Soap', defaultQty: 4, minQty: 2, unit: 'liters' },
+                        { itemName: 'Trash Bags (65gal)', defaultQty: 50, minQty: 25, unit: 'bags' },
+                        { itemName: 'Disinfectant Spray', defaultQty: 12, minQty: 6, unit: 'cans' },
+                        { itemName: 'Latex Gloves', defaultQty: 10, minQty: 5, unit: 'boxes' }
+                    ]
+                },
+                {
+                    id: 'TMPL2',
+                    name: 'Medical Facility',
+                    serviceTypes: ['medical'],
+                    items: [
+                        { itemName: 'Medical-Grade Disinfectant', defaultQty: 10, minQty: 6, unit: 'gallons' },
+                        { itemName: 'PPE Gloves', defaultQty: 50, minQty: 25, unit: 'boxes' },
+                        { itemName: 'Hand Sanitizer', defaultQty: 6, minQty: 3, unit: 'liters' },
+                        { itemName: 'Biohazard Bags', defaultQty: 30, minQty: 15, unit: 'bags' },
+                        { itemName: 'Surface Wipes (Medical)', defaultQty: 12, minQty: 6, unit: 'canisters' },
+                        { itemName: 'N95 Masks', defaultQty: 20, minQty: 10, unit: 'boxes' }
+                    ]
+                },
+                {
+                    id: 'TMPL3',
+                    name: 'Warehouse',
+                    serviceTypes: ['warehouse'],
+                    items: [
+                        { itemName: 'Floor Degreaser', defaultQty: 10, minQty: 5, unit: 'gallons' },
+                        { itemName: 'Industrial Trash Bags', defaultQty: 50, minQty: 30, unit: 'bags' },
+                        { itemName: 'Degreaser Cleaner', defaultQty: 5, minQty: 3, unit: 'gallons' },
+                        { itemName: 'Heavy-Duty Mop Heads', defaultQty: 6, minQty: 3, unit: 'units' },
+                        { itemName: 'Safety Vests', defaultQty: 10, minQty: 5, unit: 'units' },
+                        { itemName: 'Work Gloves', defaultQty: 12, minQty: 6, unit: 'pairs' }
+                    ]
+                }
+            ],
             staff: [
                 { id: 'S1', name: 'Alice Walker',    avatar: 'AW', hours: 32, type: 'cleaner',     roles: ['cleaner'], phone: '555-0101', email: 'alice@gcs.com', isActive: true, startDate: new Date(2024, 0, 15).toISOString(), notes: '' },
                 { id: 'S2', name: 'Bob Smith',       avatar: 'BS', hours: 40, type: 'maintenance', roles: ['maintenance'], phone: '555-0102', email: 'bob@gcs.com', isActive: true, startDate: new Date(2023, 6, 20).toISOString(), notes: '' },
@@ -158,19 +217,100 @@ class Database {
                 }
             ],
             inventory: [
-                { id: 'INV1',  siteId: 'L1', item: 'Bleach',                     qty: 3,  minQty: 5,  unit: 'gallons' },
-                { id: 'INV2',  siteId: 'L1', item: 'Paper Towels',               qty: 24, minQty: 12, unit: 'rolls' },
-                { id: 'INV3',  siteId: 'L1', item: 'Hand Soap',                  qty: 2,  minQty: 4,  unit: 'liters' },
-                { id: 'INV4',  siteId: 'L1', item: 'Trash Bags (65gal)',          qty: 40, minQty: 20, unit: 'bags' },
-                { id: 'INV5',  siteId: 'L2', item: 'Mop Heads',                  qty: 1,  minQty: 3,  unit: 'units' },
-                { id: 'INV6',  siteId: 'L2', item: 'Disinfectant Spray',         qty: 8,  minQty: 6,  unit: 'cans' },
-                { id: 'INV7',  siteId: 'L2', item: 'Latex Gloves',               qty: 5,  minQty: 10, unit: 'boxes' },
-                { id: 'INV8',  siteId: 'L3', item: 'Glass Cleaner',              qty: 6,  minQty: 4,  unit: 'bottles' },
-                { id: 'INV9',  siteId: 'L3', item: 'Microfiber Cloths',          qty: 10, minQty: 8,  unit: 'units' },
-                { id: 'INV10', siteId: 'L4', item: 'Medical-Grade Disinfectant', qty: 2,  minQty: 6,  unit: 'gallons' },
-                { id: 'INV11', siteId: 'L4', item: 'PPE Gloves',                 qty: 20, minQty: 15, unit: 'boxes' },
-                { id: 'INV12', siteId: 'L5', item: 'Industrial Trash Bags',      qty: 30, minQty: 20, unit: 'bags' },
-                { id: 'INV13', siteId: 'L5', item: 'Floor Degreaser',            qty: 2,  minQty: 4,  unit: 'gallons' }
+                { id: 'INV1',  siteId: 'L1', item: 'Bleach',                     qty: 3,  minQty: 5,  reorderQty: 10, unit: 'gallons', lastRestocked: minNow(-432), restockFrequency: 'weekly', notes: 'Use for floors and surfaces' },
+                { id: 'INV2',  siteId: 'L1', item: 'Paper Towels',               qty: 24, minQty: 12, reorderQty: 24, unit: 'rolls', lastRestocked: minNow(-120), restockFrequency: 'weekly', notes: 'Standard dispensers' },
+                { id: 'INV3',  siteId: 'L1', item: 'Hand Soap',                  qty: 2,  minQty: 4,  reorderQty: 6,  unit: 'liters', lastRestocked: minNow(-600), restockFrequency: 'biweekly', notes: 'For all restrooms' },
+                { id: 'INV4',  siteId: 'L1', item: 'Trash Bags (65gal)',         qty: 40, minQty: 20, reorderQty: 50, unit: 'bags', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Executive areas priority' },
+                { id: 'INV5',  siteId: 'L2', item: 'Mop Heads',                  qty: 1,  minQty: 3,  reorderQty: 6,  unit: 'units', lastRestocked: minNow(-1440), restockFrequency: 'monthly', notes: 'Warehouse-grade' },
+                { id: 'INV6',  siteId: 'L2', item: 'Disinfectant Spray',         qty: 8,  minQty: 6,  reorderQty: 12, unit: 'cans', lastRestocked: minNow(-360), restockFrequency: 'weekly', notes: 'Industrial strength' },
+                { id: 'INV7',  siteId: 'L2', item: 'Latex Gloves',               qty: 5,  minQty: 10, reorderQty: 15, unit: 'boxes', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Low stock!' },
+                { id: 'INV8',  siteId: 'L3', item: 'Glass Cleaner',              qty: 6,  minQty: 4,  reorderQty: 8,  unit: 'bottles', lastRestocked: minNow(-180), restockFrequency: 'weekly', notes: 'Premium VIP protocol' },
+                { id: 'INV9',  siteId: 'L3', item: 'Microfiber Cloths',          qty: 10, minQty: 8,  reorderQty: 12, unit: 'units', lastRestocked: minNow(-300), restockFrequency: 'biweekly', notes: 'Must be pristine' },
+                { id: 'INV10', siteId: 'L4', item: 'Medical-Grade Disinfectant', qty: 2,  minQty: 6,  reorderQty: 10, unit: 'gallons', lastRestocked: minNow(-720), restockFrequency: 'weekly', notes: 'Medical-grade only!' },
+                { id: 'INV11', siteId: 'L4', item: 'PPE Gloves',                 qty: 20, minQty: 15, reorderQty: 30, unit: 'boxes', lastRestocked: minNow(-240), restockFrequency: 'weekly', notes: 'Critical supply' },
+                { id: 'INV12', siteId: 'L5', item: 'Industrial Trash Bags',      qty: 30, minQty: 20, reorderQty: 50, unit: 'bags', lastRestocked: minNow(-480), restockFrequency: 'weekly', notes: 'Heavy-duty industrial' },
+                { id: 'INV13', siteId: 'L5', item: 'Floor Degreaser',            qty: 2,  minQty: 4,  reorderQty: 8,  unit: 'gallons', lastRestocked: minNow(-840), restockFrequency: 'biweekly', notes: 'For loading dock' }
+            ],
+            supplyRequests: [
+                {
+                    id: 'SR1',
+                    siteId: 'L1',
+                    items: [
+                        { itemName: 'Bleach', qty: 10, unit: 'gallons', reason: 'low_stock' },
+                        { itemName: 'Hand Soap', qty: 6, unit: 'liters', reason: 'low_stock' }
+                    ],
+                    status: 'pending',
+                    requestedBy: 'S1',
+                    requestedAt: minNow(-120),
+                    approvedBy: null,
+                    approvedAt: null,
+                    orderedAt: null,
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Weekly restock - stock below minimums',
+                    supplier: 'Vendor ABC',
+                    estimatedDelivery: minNow(240),
+                    trackingNumber: null
+                },
+                {
+                    id: 'SR2',
+                    siteId: 'L4',
+                    items: [
+                        { itemName: 'Medical-Grade Disinfectant', qty: 10, unit: 'gallons', reason: 'low_stock' },
+                        { itemName: 'PPE Gloves', qty: 20, unit: 'boxes', reason: 'routine' }
+                    ],
+                    status: 'approved',
+                    requestedBy: 'S4',
+                    requestedAt: minNow(-300),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-180),
+                    orderedAt: null,
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Medical facility - critical supplies',
+                    supplier: 'MedSupply Corp',
+                    estimatedDelivery: minNow(360),
+                    trackingNumber: null
+                },
+                {
+                    id: 'SR3',
+                    siteId: 'L2',
+                    items: [
+                        { itemName: 'Latex Gloves', qty: 15, unit: 'boxes', reason: 'low_stock' },
+                        { itemName: 'Disinfectant Spray', qty: 12, unit: 'cans', reason: 'routine' }
+                    ],
+                    status: 'ordered',
+                    requestedBy: 'S2',
+                    requestedAt: minNow(-600),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-480),
+                    orderedAt: minNow(-240),
+                    deliveredAt: null,
+                    receivedAt: null,
+                    notes: 'Warehouse weekly supplies',
+                    supplier: 'Industrial Supplies Inc',
+                    estimatedDelivery: minNow(120),
+                    trackingNumber: 'TRACK123456'
+                },
+                {
+                    id: 'SR4',
+                    siteId: 'L5',
+                    items: [
+                        { itemName: 'Floor Degreaser', qty: 8, unit: 'gallons', reason: 'low_stock' }
+                    ],
+                    status: 'delivered',
+                    requestedBy: 'S5',
+                    requestedAt: minNow(-1200),
+                    approvedBy: 'U1',
+                    approvedAt: minNow(-1080),
+                    orderedAt: minNow(-960),
+                    deliveredAt: minNow(-60),
+                    receivedAt: null,
+                    notes: 'Awaiting staff confirmation of delivery',
+                    supplier: 'EastCoast Chemical',
+                    estimatedDelivery: minNow(-120),
+                    trackingNumber: 'TRACK789012'
+                }
             ],
             shifts: [
                 { id: 'SH1', staffIds: ['S1'], siteId: 'L1', targetTime: minNow(-25),  status: 'late',      type: 'shift', isRecurring: false, notes: 'Needs critical attention.',         completedTasks: [], createdAt: now.toISOString() },
@@ -722,6 +862,190 @@ class Database {
     removeInventoryItem(invId) {
         this.data.inventory = this.data.inventory.filter(i => i.id !== invId);
         this.saveData();
+    }
+
+    // ─── Inventory Templates ────────────────────────────────────────────────────────
+
+    getInventoryTemplate(serviceType) {
+        return this.data.inventoryTemplates.find(t => t.serviceTypes.includes(serviceType)) || null;
+    }
+
+    getAllInventoryTemplates() {
+        return this.data.inventoryTemplates || [];
+    }
+
+    applyTemplateToFacility(siteId, templateId) {
+        const facility = this.data.sites.find(s => s.id === siteId);
+        const template = this.data.inventoryTemplates.find(t => t.id === templateId);
+
+        if (!facility || !template) return null;
+
+        // Add items from template to inventory (if not already present)
+        template.items.forEach(templateItem => {
+            const existingItem = this.data.inventory.find(
+                i => i.siteId === siteId && i.item === templateItem.itemName
+            );
+            if (!existingItem) {
+                const newItem = {
+                    id: 'INV' + Date.now(),
+                    siteId,
+                    item: templateItem.itemName,
+                    qty: templateItem.defaultQty,
+                    minQty: templateItem.minQty,
+                    reorderQty: templateItem.defaultQty,
+                    unit: templateItem.unit,
+                    lastRestocked: new Date().toISOString(),
+                    restockFrequency: 'weekly',
+                    notes: ''
+                };
+                this.data.inventory.push(newItem);
+            }
+        });
+
+        // Mark template as applied to facility
+        if (!facility.appliedTemplate) facility.appliedTemplate = templateId;
+
+        this.addFeedEvent('info', `Applied "${template.name}" template to ${facility.name}.`);
+        this.saveData();
+        return template;
+    }
+
+    addItemToTemplate(templateId, itemName, defaultQty, minQty, unit) {
+        const template = this.data.inventoryTemplates.find(t => t.id === templateId);
+        if (!template) return null;
+
+        // Check if item already exists in template
+        const existingItem = template.items.find(i => i.itemName.toLowerCase() === itemName.toLowerCase());
+        if (existingItem) {
+            // Update existing item
+            existingItem.defaultQty = defaultQty;
+            existingItem.minQty = minQty;
+            existingItem.unit = unit;
+        } else {
+            // Add new item to template
+            template.items.push({
+                itemName,
+                defaultQty: parseInt(defaultQty) || 0,
+                minQty: parseInt(minQty) || 0,
+                unit
+            });
+        }
+
+        this.addFeedEvent('info', `Added "${itemName}" to "${template.name}" template.`);
+        this.saveData();
+        return template;
+    }
+
+    // ─── Supply Requests ────────────────────────────────────────────────────────────
+
+    createSupplyRequest(siteId, items, requestedBy, notes = '', supplier = null, estimatedDelivery = null) {
+        const id = 'SR' + Date.now();
+        const supplyRequest = {
+            id,
+            siteId,
+            items,  // Array of {itemName, qty, unit, reason}
+            status: 'pending',
+            requestedBy,
+            requestedAt: new Date().toISOString(),
+            approvedBy: null,
+            approvedAt: null,
+            orderedAt: null,
+            deliveredAt: null,
+            receivedAt: null,
+            notes: notes.trim(),
+            supplier: supplier ? supplier.trim() : null,
+            estimatedDelivery,
+            trackingNumber: null
+        };
+        this.data.supplyRequests.push(supplyRequest);
+        const site = this.data.sites.find(s => s.id === siteId);
+        const staff = this.data.staff.find(s => s.id === requestedBy);
+        this.addFeedEvent('info', `Supply request created for ${site ? site.name : siteId} by ${staff ? staff.name : 'staff'} - ${items.length} items.`);
+        this.saveData();
+        return supplyRequest;
+    }
+
+    updateSupplyRequestStatus(requestId, newStatus, metadata = {}) {
+        const request = this.data.supplyRequests.find(r => r.id === requestId);
+        if (!request) return null;
+
+        const oldStatus = request.status;
+        request.status = newStatus;
+        const now = new Date().toISOString();
+
+        switch (newStatus) {
+            case 'approved':
+                request.approvedBy = metadata.approvedBy || null;
+                request.approvedAt = now;
+                break;
+            case 'ordered':
+                request.orderedAt = now;
+                request.trackingNumber = metadata.trackingNumber || null;
+                break;
+            case 'delivered':
+                request.deliveredAt = now;
+                break;
+            case 'received':
+                request.receivedAt = now;
+                // Auto-update inventory quantities
+                request.items.forEach(item => {
+                    const invItem = this.data.inventory.find(
+                        i => i.siteId === request.siteId && i.item === item.itemName
+                    );
+                    if (invItem) {
+                        invItem.qty += item.qty;
+                        invItem.lastRestocked = now;
+                    }
+                });
+                break;
+        }
+
+        const site = this.data.sites.find(s => s.id === request.siteId);
+        const statusMessages = {
+            approved: 'Manager approved',
+            ordered: 'Supply order placed',
+            delivered: 'Supply delivery arrived',
+            received: 'Supply order received and inventory updated'
+        };
+        const message = statusMessages[newStatus] || `Status changed to ${newStatus}`;
+        this.addFeedEvent('info', `${message} at ${site ? site.name : request.siteId}.`);
+        this.saveData();
+        return request;
+    }
+
+    getSupplyRequestsForSite(siteId) {
+        return this.data.supplyRequests.filter(r => r.siteId === siteId);
+    }
+
+    getSupplyRequests(statusFilter = null) {
+        if (!statusFilter) return this.data.supplyRequests || [];
+        return (this.data.supplyRequests || []).filter(r => r.status === statusFilter);
+    }
+
+    approveSupplyRequest(requestId, managerId) {
+        return this.updateSupplyRequestStatus(requestId, 'approved', { approvedBy: managerId });
+    }
+
+    cancelSupplyRequest(requestId, reason = '') {
+        const request = this.data.supplyRequests.find(r => r.id === requestId);
+        if (!request) return null;
+        request.status = 'cancelled';
+        const site = this.data.sites.find(s => s.id === request.siteId);
+        this.addFeedEvent('alert', `Supply request cancelled at ${site ? site.name : request.siteId}${reason ? ' - ' + reason : ''}.`);
+        this.saveData();
+        return request;
+    }
+
+    getItemsNeedingReorder(siteId) {
+        return this.data.inventory.filter(i => i.siteId === siteId && i.qty < i.minQty);
+    }
+
+    updateRestockFrequency(invId, frequency) {
+        const item = this.data.inventory.find(i => i.id === invId);
+        if (!item) return null;
+        item.restockFrequency = frequency;
+        this.saveData();
+        return item;
     }
 
     // ─── Chat History ────────────────────────────────────────────────────────────

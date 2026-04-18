@@ -7,6 +7,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a75b8'/><text y='.9em' font-size='70' x='12'>C</text></svg>"/>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Leaflet.js for Map Visualization -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -161,9 +164,8 @@
                         <button class="bg-white p-1.5 rounded-lg shadow border border-slate-100 text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">add</span></button>
                         <button class="bg-white p-1.5 rounded-lg shadow border border-slate-100 text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">remove</span></button>
                     </div>
-                    <div class="w-full h-full bg-cover bg-center relative" style='background-image:url("https://lh3.googleusercontent.com/aida-public/AB6AXuD03ONpWZh98kUF3R4c6Fn_Z3OKox-zVnPierN710_7mRfWwLj2uHpGpp_joXeka6IFBX-dbv8bgcWaCbzc7UEdx9qCrdbye7Yk8wRjqOHGCL5wjiM-1NglYNaaaRLc0zmArdzoYGFLhy7BDe6gujP1QPtVx7H3pxkF5AukPBQvFAiFvItJhzzS59VyB_5yWeDmIOZEz1Zhci3htfDYwcbZtbpJKCIopoaGnX3g2FPn-1y6C37AZKe7SMFUKdal9L0DBVcOyaGJU6CC");'>
-                        <div id="map-pins" class="absolute inset-0"></div>
-                    </div>
+                    <!-- Leaflet Map Container -->
+                    <div id="map-container" class="w-full h-full rounded-lg overflow-hidden" style="min-height: 400px; background: #e5e7eb;"></div>
                 </section>
                 <aside class="flex-[1] min-w-[260px] max-w-[340px] bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm">
                     <div class="p-4 border-b border-slate-100 bg-white shrink-0">
@@ -586,6 +588,14 @@
                         </button>
                     </div>
 
+                    <!-- Client Filter Dropdown -->
+                    <div class="flex gap-2 items-center">
+                        <label for="facility-client-filter" class="text-xs font-medium text-slate-600">Filter by Client:</label>
+                        <select id="facility-client-filter" onchange="setClientFilter(this.value)" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none bg-white">
+                            <option value="">All Clients</option>
+                        </select>
+                    </div>
+
                     <!-- Add Facility Form -->
                     <div id="add-facility-form" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
                         <h4 class="font-bold text-sm text-slate-900">New Facility</h4>
@@ -615,45 +625,148 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-slate-900">Inventory & Supply</h2>
-                    <p class="text-sm text-slate-500 mt-0.5">Track stock levels across all facilities</p>
+                    <p class="text-sm text-slate-500 mt-0.5">Track stock levels, manage requests, and apply templates</p>
                 </div>
-                <button onclick="toggleAddInventoryForm()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
-                    <span class="material-symbols-outlined text-[16px]">add</span> Add Item
+                <div class="flex gap-2">
+                    <button onclick="openCreateRequestModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm" id="create-request-btn">
+                        <span class="material-symbols-outlined text-[16px]">playlist_add</span> New Request
+                    </button>
+                    <button onclick="toggleAddInventoryForm()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary-dark transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-[16px]">add</span> Add Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="flex gap-1 border-b border-slate-200 bg-white rounded-t-lg px-2">
+                <button onclick="switchInventoryTab('current_stock')" class="inventory-tab-btn active px-4 py-3 font-bold text-sm border-b-2 border-primary text-primary transition-all" data-tab="current_stock">
+                    Current Stock
+                </button>
+                <button onclick="switchInventoryTab('supply_requests')" class="inventory-tab-btn px-4 py-3 font-bold text-sm border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition-all" data-tab="supply_requests">
+                    Supply Requests
+                </button>
+                <button onclick="switchInventoryTab('templates')" class="inventory-tab-btn px-4 py-3 font-bold text-sm border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition-all" data-tab="templates">
+                    Templates
                 </button>
             </div>
 
-            <!-- Site Filter -->
-            <div id="inventory-site-tabs" class="flex gap-2 flex-wrap"></div>
+            <!-- ═ TAB 1: CURRENT STOCK ═ -->
+            <div id="tab-current-stock" class="inventory-tab-content space-y-5">
+                <!-- Site Filter -->
+                <div id="inventory-site-tabs" class="flex gap-2 flex-wrap"></div>
 
-            <!-- Add Item Form -->
-            <div id="add-inventory-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
-                <h3 class="font-bold text-slate-900 mb-3">Add Inventory Item</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <select id="inv-site"   class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none col-span-1"></select>
-                    <input id="inv-item"    type="text"   placeholder="Item Name *"  class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none col-span-1"/>
-                    <input id="inv-qty"     type="number" placeholder="Qty *"        class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    <input id="inv-minqty"  type="number" placeholder="Min Qty *"    class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    <input id="inv-unit"    type="text"   placeholder="Unit (e.g. gallons)" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
-                    <button onclick="submitAddInventory()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Add Item</button>
+                <!-- Add Item Form -->
+                <div id="add-inventory-form" class="hidden bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+                    <h3 class="font-bold text-slate-900 mb-3">Add Inventory Item</h3>
+                    <div class="space-y-3">
+                        <!-- Add To selector: Site or Template -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 mb-1 block">Add To *</label>
+                                <select id="inv-add-to" onchange="toggleAddToType()" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                                    <option value="site">Specific Site Only</option>
+                                    <option value="template">Add to Template</option>
+                                </select>
+                            </div>
+                            <!-- Conditional: Site or Template selector -->
+                            <div>
+                                <label id="inv-target-label" class="text-xs font-bold text-slate-600 mb-1 block">Facility *</label>
+                                <select id="inv-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+                                <select id="inv-template" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none hidden"></select>
+                            </div>
+                        </div>
+
+                        <!-- Item Details Row -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 mb-1 block">Item Name *</label>
+                                <input id="inv-item" type="text" placeholder="Item Name" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 mb-1 block">Qty *</label>
+                                <input id="inv-qty" type="number" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 mb-1 block">Min Qty *</label>
+                                <input id="inv-minqty" type="number" placeholder="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 mb-1 block">Unit *</label>
+                                <input id="inv-unit" type="text" placeholder="e.g. gallons" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="submitAddInventory()" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Add Item</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[600px]">
+                            <thead>
+                                <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-5 py-3">Item</th>
+                                    <th class="px-5 py-3">Facility</th>
+                                    <th class="px-5 py-3">Quantity</th>
+                                    <th class="px-5 py-3">Min Required</th>
+                                    <th class="px-5 py-3">Restock Freq</th>
+                                    <th class="px-5 py-3">Last Restocked</th>
+                                    <th class="px-5 py-3">Status</th>
+                                    <th class="px-5 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Inventory Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                            <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                                <th class="px-5 py-3">Item</th>
-                                <th class="px-5 py-3">Facility</th>
-                                <th class="px-5 py-3">Quantity</th>
-                                <th class="px-5 py-3">Min Required</th>
-                                <th class="px-5 py-3">Status</th>
-                                <th class="px-5 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
-                    </table>
+            <!-- ═ TAB 2: SUPPLY REQUESTS ═ -->
+            <div id="tab-supply-requests" class="inventory-tab-content hidden space-y-5">
+                <!-- Filters -->
+                <div class="flex gap-3 flex-wrap items-center">
+                    <select id="supply-status-filter" onchange="renderSupplyRequests()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="ordered">Ordered</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="received">Received</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <select id="supply-site-filter" onchange="renderSupplyRequests()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                        <option value="">All Facilities</option>
+                    </select>
+                </div>
+
+                <!-- Supply Requests Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-5 py-3">Request ID</th>
+                                    <th class="px-5 py-3">Facility</th>
+                                    <th class="px-5 py-3">Items</th>
+                                    <th class="px-5 py-3">Status</th>
+                                    <th class="px-5 py-3">Requested</th>
+                                    <th class="px-5 py-3">Requested By</th>
+                                    <th class="px-5 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supply-requests-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═ TAB 3: TEMPLATES ═ -->
+            <div id="tab-templates" class="inventory-tab-content hidden space-y-5">
+                <!-- Templates Grid -->
+                <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Template cards render here -->
                 </div>
             </div>
         </div>
@@ -894,6 +1007,59 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     SUPPLY REQUEST CREATION MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="create-supply-request-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <h3 class="font-bold text-slate-900 text-lg mb-4">Create Supply Request</h3>
+
+        <div class="space-y-4">
+            <!-- Facility Selection -->
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-1">Facility *</label>
+                <select id="request-site" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
+            </div>
+
+            <!-- Items Selection -->
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-1">Items to Request</label>
+                <div id="request-items-list" class="space-y-2 max-h-[200px] overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+                    <!-- Items populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Reason -->
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-1">Reason for Request</label>
+                <select id="request-reason" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+                    <option value="low_stock">Low Stock</option>
+                    <option value="routine">Routine Restocking</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <!-- Supplier -->
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-1">Supplier (Optional)</label>
+                <input id="request-supplier" type="text" placeholder="e.g., Vendor ABC" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-sm font-bold text-slate-900 mb-1">Notes</label>
+                <textarea id="request-notes" rows="3" placeholder="Additional details..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-none"></textarea>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button onclick="document.getElementById('create-supply-request-modal').classList.add('hidden')" class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors">Cancel</button>
+            <button onclick="submitSupplyRequest()" class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-colors">Create Request</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      RESET CONFIRM MODAL
 ═══════════════════════════════════════════════════════════════ -->
 <div id="reset-modal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
@@ -1021,7 +1187,38 @@
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
                 <textarea id="edit-facility-notes" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" rows="3"></textarea>
             </div>
-            <label class="flex items-center gap-2">
+
+            <!-- Geofence Configuration -->
+            <div class="pt-4 border-t border-slate-200">
+                <h4 class="font-semibold text-slate-900 text-sm mb-3">📍 Geofence Configuration</h4>
+                <label class="flex items-center gap-2 mb-3">
+                    <input type="checkbox" id="edit-facility-geofence-enabled"/>
+                    <span class="text-sm font-semibold text-slate-700">Enable Geofence</span>
+                </label>
+                <p class="text-xs text-slate-500 mb-3">Staff will auto clock-in/out when entering/leaving this zone</p>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Geofence Radius (meters)</label>
+                        <input type="number" id="edit-facility-geofence-radius" placeholder="50" min="10" max="1000" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Location Accuracy</label>
+                        <input type="text" id="edit-facility-geofence-accuracy" placeholder="15m" readonly class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600"/>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Latitude</label>
+                        <input type="number" id="edit-facility-lat" step="0.0001" readonly class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Longitude</label>
+                        <input type="number" id="edit-facility-lng" step="0.0001" readonly class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600"/>
+                    </div>
+                </div>
+            </div>
+
+            <label class="flex items-center gap-2 pt-2">
                 <input type="checkbox" id="edit-facility-active"/>
                 <span class="text-sm font-semibold text-slate-700">Active</span>
             </label>
