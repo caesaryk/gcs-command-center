@@ -275,29 +275,72 @@ window.openShiftAlertDetail = function (shiftId) {
 // ─── CS Center: Feed ──────────────────────────────────────────────────────────
 
 function feedItemHTML(item) {
-    const themes = {
-        alert:   { bar: 'bg-red-500',     icon: 'warning',       bg: 'bg-red-50',     text: 'text-red-700' },
-        success: { bar: 'bg-emerald-500', icon: 'check_circle',  bg: 'bg-emerald-50', text: 'text-emerald-700' },
-        info:    { bar: 'bg-blue-500',    icon: 'info',          bg: 'bg-blue-50',    text: 'text-blue-700' },
-        warning: { bar: 'bg-amber-500',   icon: 'warning',       bg: 'bg-amber-50',   text: 'text-amber-700' }
+    const colorMap = {
+        alert:   { barColor: '#ef4444', iconBg: '#fee2e2', iconColor: '#dc2626', text: 'ALERT' },
+        success: { barColor: '#10b981', iconBg: '#d1fae5', iconColor: '#059669', text: 'SUCCESS' },
+        info:    { barColor: '#3b82f6', iconBg: '#dbeafe', iconColor: '#1d4ed8', text: 'INFO' },
+        warning: { barColor: '#f59e0b', iconBg: '#fef3c7', iconColor: '#d97706', text: 'WARNING' }
     };
-    const t = themes[item.type] || themes.info;
+    const color = colorMap[item.type] || colorMap.info;
+    const icons = {
+        alert:   'warning',
+        success: 'check_circle',
+        info:    'info',
+        warning: 'warning'
+    };
+
     return `
-        <div class="w-full pb-2">
-            <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="relative w-full text-left bg-white rounded-lg border-2 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-3 pl-4 min-h-[80px] block">
-                <div class="flex items-start gap-3">
-                    <div class="${t.bg} ${t.text} p-2.5 rounded-full flex-shrink-0">
-                        <span class="material-symbols-outlined text-[22px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
-                    </div>
-                    <div class="flex-1 min-w-0 flex flex-col gap-1">
-                        <div class="flex justify-between items-start gap-2">
-                            <span class="text-[13px] font-black uppercase tracking-widest ${t.text}">${escapeHTML(item.type)}</span>
-                            <span class="text-[12px] text-slate-500 shrink-0">${timeAgo(item.timestamp)}</span>
-                        </div>
-                        <p class="text-sm text-slate-900 font-semibold leading-snug">${escapeHTML(item.message)}</p>
-                    </div>
+        <div style="width: 100%; padding-bottom: 8px;">
+            <button onclick="openFeedDetail('${escapeHTML(item.id)}')" style="
+                width: 100%;
+                text-align: left;
+                background: white;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 16px;
+                padding-left: 20px;
+                min-height: 90px;
+                display: flex;
+                gap: 12px;
+                align-items: flex-start;
+                cursor: pointer;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                border-left: 4px solid ${color.barColor};
+                transition: all 0.2s;
+            " onmouseover="this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'; this.style.borderColor='#d1d5db';" onmouseout="this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)'; this.style.borderColor='#e5e7eb';">
+                <div style="
+                    background: ${color.iconBg};
+                    color: ${color.iconColor};
+                    padding: 10px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 44px;
+                    min-height: 44px;
+                ">
+                    <span class="material-symbols-outlined" style="font-size: 22px; font-variation-settings: 'FILL' 1">${icons[item.type] || 'info'}</span>
                 </div>
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-lg ${t.bar}" style="margin-left:-8px;"></div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
+                        <span style="
+                            font-size: 12px;
+                            font-weight: 900;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em;
+                            color: ${color.iconColor};
+                        ">${escapeHTML(color.text)}</span>
+                        <span style="font-size: 12px; color: #6b7280; flex-shrink: 0;">${timeAgo(item.timestamp)}</span>
+                    </div>
+                    <p style="
+                        font-size: 14px;
+                        color: #111827;
+                        font-weight: 600;
+                        line-height: 1.4;
+                        margin: 0;
+                    ">${escapeHTML(item.message)}</p>
+                </div>
             </button>
         </div>`;
 }
