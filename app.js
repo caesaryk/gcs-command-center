@@ -276,25 +276,25 @@ window.openShiftAlertDetail = function (shiftId) {
 
 function feedItemHTML(item) {
     const themes = {
-        alert:   { bar: 'bg-red-500',     icon: 'warning',       bg: 'bg-red-50',     text: 'text-red-600' },
-        success: { bar: 'bg-emerald-500', icon: 'check_circle',  bg: 'bg-emerald-50', text: 'text-emerald-600' },
-        info:    { bar: 'bg-blue-500',    icon: 'info',          bg: 'bg-blue-50',    text: 'text-blue-600' },
-        warning: { bar: 'bg-amber-500',   icon: 'warning',       bg: 'bg-amber-50',   text: 'text-amber-600' }
+        alert:   { bar: 'bg-red-500',     icon: 'warning',       bg: 'bg-red-50',     text: 'text-red-700' },
+        success: { bar: 'bg-emerald-500', icon: 'check_circle',  bg: 'bg-emerald-50', text: 'text-emerald-700' },
+        info:    { bar: 'bg-blue-500',    icon: 'info',          bg: 'bg-blue-50',    text: 'text-blue-700' },
+        warning: { bar: 'bg-amber-500',   icon: 'warning',       bg: 'bg-amber-50',   text: 'text-amber-700' }
     };
     const t = themes[item.type] || themes.info;
     return `
-        <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
-            <div class="absolute left-0 top-0 bottom-0 w-1 ${t.bar}"></div>
-            <div class="flex items-start gap-3 pl-3 pr-3 py-4">
-                <div class="${t.bg} ${t.text} p-2 rounded-full flex-shrink-0 mt-0.5">
-                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
+        <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left relative bg-white rounded-lg border border-slate-300 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <div class="absolute left-0 top-0 bottom-0 w-1.5 ${t.bar}"></div>
+            <div class="flex items-start gap-3 pl-4 pr-4 py-3">
+                <div class="${t.bg} ${t.text} p-2.5 rounded-full flex-shrink-0 mt-0">
+                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-start gap-2 mb-1">
-                        <span class="text-[11px] font-black uppercase tracking-wider ${t.text}">${escapeHTML(item.type)}</span>
-                        <span class="text-[11px] text-slate-400 shrink-0">${timeAgo(item.timestamp)}</span>
+                    <div class="flex justify-between items-start gap-2 mb-2">
+                        <span class="text-[12px] font-black uppercase tracking-widest ${t.text}">${escapeHTML(item.type)}</span>
+                        <span class="text-[12px] text-slate-500 shrink-0 font-medium">${timeAgo(item.timestamp)}</span>
                     </div>
-                    <p class="text-sm text-slate-700 leading-snug font-medium">${escapeHTML(item.message)}</p>
+                    <p class="text-base text-slate-800 leading-relaxed font-semibold">${escapeHTML(item.message)}</p>
                 </div>
             </div>
         </button>`;
