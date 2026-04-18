@@ -284,7 +284,7 @@ function feedItemHTML(item) {
     const t = themes[item.type] || themes.info;
     return `
         <div class="w-full pb-2">
-            <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="w-full text-left bg-white rounded-lg border-2 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-3 min-h-[80px] block">
+            <button onclick="openFeedDetail('${escapeHTML(item.id)}')" class="relative w-full text-left bg-white rounded-lg border-2 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-3 pl-4 min-h-[80px] block">
                 <div class="flex items-start gap-3">
                     <div class="${t.bg} ${t.text} p-2.5 rounded-full flex-shrink-0">
                         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings:'FILL' 1">${t.icon}</span>
